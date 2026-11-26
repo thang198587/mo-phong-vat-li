@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Mô phỏng thí nghiệm Vật lí THPT lớp 10–12 theo Chương trình GDPT 2018">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Phòng thí nghiệm Vật lí ảo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Lexend:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: thanh chọn lớp + danh sách thí nghiệm ở trên; bàn thí nghiệm (canvas) bên trái, bảng điều khiển bên phải; số liệu và câu hỏi bên dưới. Nền giấy kẻ ô. */
+:root {
+  --bg: #f3f6f5;
+  --surface: #ffffff;
+  --ink: #14232a;
+  --muted: #5a6b70;
+  --line: #d3dedb;
+  --grid: #e5ecea;
+  --accent: #0b6e72;
+  --accent-ink: #ffffff;
+  --c1: #c8384f;
+  --c2: #2c63c9;
+  --c3: #c98a00;
+  --soft: #e6f1f0;
+  --font-display: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1618; --surface: #152023; --ink: #e2ecea; --muted: #93a6a8; --line: #26363a; --grid: #1c292c;
+    --accent: #4cc2b6; --accent-ink: #062224; --c1: #ff6f82; --c2: #74a4ff; --c3: #f0c04e; --soft: #18302f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1618; --surface: #152023; --ink: #e2ecea; --muted: #93a6a8; --line: #26363a; --grid: #1c292c;
+  --accent: #4cc2b6; --accent-ink: #062224; --c1: #ff6f82; --c2: #74a4ff; --c3: #f0c04e; --soft: #18302f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 16px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.4rem, 3vw, 1.9rem); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: 0.92rem; }
+.grades { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px; }
+.grades button { font: 600 0.95rem var(--font-display); border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 7px; cursor: pointer; }
+.grades button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.simlist { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.simlist a { text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 0.92rem; display: inline-flex; gap: 8px; align-items: baseline; }
+.simlist a small { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.simlist a[aria-current="true"] { border-color: var(--accent); background: var(--soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; min-width: 0; }
+.stage-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.stage-head h2 { font: 600 1.15rem var(--font-display); margin: 0; }
+.chap { font-size: 0.78rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.blurb { color: var(--muted); font-size: 0.9rem; margin: 2px 0 0; max-width: 70ch; }
+canvas { display: block; width: 100%; touch-action: none; }
+.stage:fullscreen { display: flex; flex-direction: column; justify-content: center; border-radius: 0; }
+.controls { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 14px; min-width: 0; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+button.b { font: 500 0.9rem var(--font-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+button.b.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.b:hover { border-color: var(--accent); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.param { display: grid; gap: 4px; }
+.param label { display: flex; justify-content: space-between; gap: 8px; font-size: 0.88rem; }
+.param output { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); white-space: nowrap; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+select { font: inherit; font-size: 0.9rem; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 100%; }
+.speed { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.speed select { width: auto; }
+.readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+.ro { background: var(--surface); padding: 8px 14px; min-width: 0; }
+.ro span { display: block; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.ro b { font: 500 1rem var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.status { font-size: 0.85rem; color: var(--muted); min-height: 1.3em; margin: 0; }
+.lower { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+@media (max-width: 880px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.card h3 { font: 600 1rem var(--font-display); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tablebox { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: right; white-space: nowrap; }
+th { background: var(--soft); font-weight: 600; text-align: center; }
+td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); font-size: 0.88rem; margin: 4px 0; }
+ol.qs { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; font-size: 0.93rem; }
+footer { color: var(--muted); font-size: 0.82rem; margin-top: 20px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Phòng thí nghiệm Vật lí ảo</h1>
+      <p class="sub">Mô phỏng theo mạch nội dung Vật lí THPT – Chương trình GDPT 2018 (dùng được với cả ba bộ sách)</p>
+    </div>
+    <nav class="grades" id="grades" aria-label="Chọn lớp"></nav>
+  </header>
+  <nav class="simlist" id="simlist" aria-label="Danh sách thí nghiệm"></nav>
+
+  <section class="bench">
+    <div class="stage" id="stage">
+      <div class="stage-head">
+        <div>
+          <div class="chap" id="chap"></div>
+          <h2 id="simtitle"></h2>
+          <p class="blurb" id="blurb"></p>
+        </div>
+      </div>
+      <canvas id="cv" aria-label="Khung mô phỏng"></canvas>
+      <div class="readouts" id="readouts"></div>
+    </div>
+
+    <aside class="controls" aria-label="Điều khiển">
+      <div class="btns">
+        <button class="b primary" id="play" type="button">▶ Chạy</button>
+        <button class="b" id="reset" type="button">↺ Làm lại</button>
+        <button class="b" id="rec" type="button">＋ Ghi số liệu</button>
+        <button class="b" id="fs" type="button">⛶ Toàn màn hình</button>
+      </div>
+      <div class="speed"><label for="spd">Tốc độ mô phỏng</label>
+        <select id="spd"><option value="0.25">× 0,25</option><option value="0.5">× 0,5</option><option value="1" selected>× 1</option><option value="2">× 2</option></select>
+      </div>
+      <div id="params" style="display:grid;gap:12px"></div>
+      <p class="status" id="status" role="status"></p>
+    </aside>
+  </section>
+
+  <section class="lower">
+    <div class="card">
+      <h3>Bảng số liệu
+        <span class="btns"><button class="b" id="copy" type="button">Sao chép sang Excel</button><button class="b" id="clear" type="button">Xoá bảng</button></span>
+      </h3>
+      <div class="tablebox" id="tablebox"></div>
+    </div>
+    <div class="card">
+      <h3>Câu hỏi gợi ý cho học sinh</h3>
+      <ol class="qs" id="qs"></ol>
+    </div>
+  </section>
+  <footer>Mẹo: mỗi thí nghiệm có đường dẫn riêng (ví dụ …#song-dung) để chèn vào giáo án hoặc gửi học sinh. Số liệu chỉ lưu trên máy đang mở trang.</footer>
+</div>
+
+<script>
+"use strict";
+/* ---------- tiện ích ---------- */
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const G = 9.8;
+function fmt(n, d = 2) {
+  if (n === null || n === undefined || !isFinite(n)) return "—";
+  let s = Math.abs(n) >= 1e5 || (Math.abs(n) < 1e-3 && n !== 0) ? n.toExponential(2) : n.toFixed(d);
+  if (/^-0(\.0+)?$/.test(s)) s = s.slice(1);
+  return s.replace(".", ",");
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))); const f = x / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+function ticks(a, b, n) { if (!(b > a)) return []; const st = niceStep((b - a) / n); const out = []; for (let t = Math.ceil(a / st - 1e-9) * st; t <= b + 1e-9; t += st) out.push(+t.toFixed(10)); return out; }
+const tlabel = (t) => String(+t.toPrecision(6)).replace(".", ",");
+
+let C = {};
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ["bg", "surface", "ink", "muted", "line", "grid", "accent", "c1", "c2", "c3", "soft"]) C[k] = cs.getPropertyValue("--" + k).trim();
+}
+const FONT = (s, w = 400) => `${w} ${s}px "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif`;
+const MONO = (s) => `${s}px "JetBrains Mono", Consolas, monospace`;
+
+function line(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+function arrow(ctx, x1, y1, x2, y2, color, lw = 2.2, label) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+  if (L < 3) return;
+  const ux = dx / L, uy = dy / L, hs = Math.min(10, L * 0.45);
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  line(ctx, x1, y1, x2 - ux * hs * 0.6, y2 - uy * hs * 0.6);
+  ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux * hs - uy * hs * 0.5, y2 - uy * hs + ux * hs * 0.5);
+  ctx.lineTo(x2 - ux * hs + uy * hs * 0.5, y2 - uy * hs - ux * hs * 0.5);
+  ctx.closePath(); ctx.fill();
+  if (label) { ctx.font = FONT(13, 600); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(label, x2 + ux * 14, y2 + uy * 14); }
+}
+function graph(ctx, x, y, w, h, o) {
+  ctx.save();
+  ctx.lineWidth = 1; ctx.font = MONO(10.5); ctx.fillStyle = C.muted;
+  for (const t of ticks(o.x0, o.x1, Math.max(3, Math.floor(w / 80)))) {
+    const px = x + (t - o.x0) / (o.x1 - o.x0) * w; ctx.strokeStyle = C.grid; line(ctx, px, y, px, y + h);
+    ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(tlabel(t), px, y + h + 3);
+  }
+  for (const t of ticks(o.y0, o.y1, 4)) {
+    const py = y + h - (t - o.y0) / (o.y1 - o.y0) * h; ctx.strokeStyle = C.grid; line(ctx, x, py, x + w, py);
+    ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(tlabel(t), x - 4, py);
+  }
+  ctx.strokeStyle = C.line; ctx.strokeRect(x, y, w, h);
+  ctx.font = FONT(11.5, 500); ctx.fillStyle = C.muted; ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+  ctx.fillText(o.xl || "", x + w, y - 3); ctx.textAlign = "left"; ctx.fillText(o.yl || "", x, y - 3);
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  for (const s of o.series) {
+    if (!s.pts.length) continue;
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.lw || 2; ctx.setLineDash(s.dash || []);
+    ctx.beginPath();
+    s.pts.forEach((p, i) => { const px = x + (p[0] - o.x0) / (o.x1 - o.x0) * w, py = y + h - (p[1] - o.y0) / (o.y1 - o.y0) * h; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+function legend(ctx, x, y, items) {
+  ctx.font = FONT(11.5, 500); ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  for (const [label, color, dash] of items) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash || []); line(ctx, x, y, x + 18, y); ctx.setLineDash([]);
+    ctx.fillStyle = C.ink; ctx.fillText(label, x + 24, y); x += 30 + ctx.measureText(label).width + 14;
+  }
+}
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ---------- các thí nghiệm ---------- */
+const SIMS = [];
+
+/* 1. Ném xiên */
+SIMS.push({
+  id: "nem-xien", grade: 10, chap: "Động học", title: "Rơi tự do, ném ngang, ném xiên",
+  blurb: "Đặt v₀ = 0 để quan sát rơi tự do, góc 0° để ném ngang. Chạy đến khi vật chạm đất rồi ghi số liệu.",
+  params: [
+    { id: "v0", label: "Vận tốc ban đầu v₀", min: 0, max: 30, step: 0.5, value: 15, unit: "m/s" },
+    { id: "a", label: "Góc ném α", min: 0, max: 90, step: 1, value: 45, unit: "°" },
+    { id: "h0", label: "Độ cao ban đầu h₀", min: 0, max: 30, step: 0.5, value: 0, unit: "m" },
+    { id: "g", label: "Gia tốc rơi tự do g", min: 1.6, max: 25, step: 0.1, value: 9.8, unit: "m/s²" },
+  ],
+  setup(p) {
+    const r = p.a * Math.PI / 180, vx = p.v0 * Math.cos(r), vy = p.v0 * Math.sin(r);
+    const tf = (vy + Math.sqrt(vy * vy + 2 * p.g * p.h0)) / p.g;
+    return { t: 0, vx, vy0: vy, tf: tf || 0, L: vx * tf, Hm: p.h0 + vy * vy / (2 * p.g), trail: [[0, p.h0]], done: tf === 0 };
+  },
+  pos(s, p, t) { return [s.vx * t, p.h0 + s.vy0 * t - 0.5 * p.g * t * t]; },
+  step(s, p, dt) {
+    s.t = Math.min(s.t + dt, s.tf); s.trail.push(this.pos(s, p, s.t));
+    if (s.t >= s.tf) { s.done = true; return "stop"; }
+  },
+  draw(ctx, W, H, s, p) {
+    const ml = 56, mr = 24, mt = 26, mb = 40;
+    const sx = Math.max(s.L * 1.08, 2), sy = Math.max(s.Hm * 1.15, 2);
+    const k = Math.min((W - ml - mr) / sx, (H - mt - mb) / sy);
+    const X = (x) => ml + x * k, Y = (y) => H - mb - y * k;
+    ctx.lineWidth = 1; ctx.font = MONO(10.5); ctx.fillStyle = C.muted;
+    for (const t of ticks(0, (W - ml - mr) / k, Math.max(3, Math.floor(W / 90)))) { ctx.strokeStyle = C.grid; line(ctx, X(t), mt, X(t), H - mb); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(tlabel(t), X(t), H - mb + 4); }
+    for (const t of ticks(0, (H - mt - mb) / k, 4)) { ctx.strokeStyle = C.grid; line(ctx, ml, Y(t), W - mr, Y(t)); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(tlabel(t), ml - 6, Y(t)); }
+    ctx.font = FONT(11.5, 500); ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillText("x (m)", W - mr, H - mb - 4); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("y (m)", ml + 4, mt - 18);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; line(ctx, ml - 10, Y(0), W - mr, Y(0));
+    if (p.h0 > 0) { ctx.fillStyle = C.line; ctx.fillRect(X(0) - 14, Y(p.h0), 14, p.h0 * k); }
+    // quỹ đạo lí thuyết
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.setLineDash([4, 5]); ctx.beginPath();
+    for (let i = 0; i <= 80; i++) { const [x, y] = this.pos(s, p, s.tf * i / 80); i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); }
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 2.5; ctx.beginPath();
+    s.trail.forEach(([x, y], i) => i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y))); ctx.stroke();
+    const [x, y] = this.pos(s, p, s.t), vy = s.vy0 - p.g * s.t, kv = 4;
+    arrow(ctx, X(x), Y(y), X(x) + s.vx * kv, Y(y), C.c2, 2, "v⃗ₓ");
+    arrow(ctx, X(x), Y(y), X(x), Y(y) - vy * kv, C.c1, 2, "v⃗ᵧ");
+    arrow(ctx, X(x), Y(y), X(x) + s.vx * kv, Y(y) - vy * kv, C.accent, 2.4, "v⃗");
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(X(x), Y(y), 7, 0, 7); ctx.fill();
+    if (s.done && s.L > 0) { ctx.fillStyle = C.ink; ctx.font = FONT(12.5, 600); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("L = " + fmt(s.L) + " m", X(s.L), Y(0) + 18); }
+  },
+  readouts(s, p) {
+    const [x, y] = this.pos(s, p, s.t), vy = s.vy0 - p.g * s.t;
+    return [["t", fmt(s.t) + " s"], ["x", fmt(x) + " m"], ["y", fmt(y) + " m"], ["vₓ", fmt(s.vx) + " m/s"], ["vᵧ", fmt(vy) + " m/s"], ["Tầm xa L", fmt(s.L) + " m"], ["Độ cao cực đại", fmt(s.Hm) + " m"]];
+  },
+  cols: ["v₀ (m/s)", "α (°)", "h₀ (m)", "g (m/s²)", "Thời gian bay (s)", "Tầm xa L (m)", "Độ cao cực đại (m)"],
+  record(s, p) { if (!s.done) return "Chạy đến khi vật chạm đất rồi mới ghi số liệu."; return [fmt(p.v0, 1), fmt(p.a, 0), fmt(p.h0, 1), fmt(p.g, 1), fmt(s.tf), fmt(s.L), fmt(s.Hm)]; },
+  qs: ["Giữ v₀ = 15 m/s, h₀ = 0. Ghi tầm xa với α = 15°, 30°, 45°, 60°, 75°. Góc nào cho tầm xa lớn nhất? Hai góc nào cho cùng tầm xa?",
+       "Đặt v₀ = 0, h₀ = 20 m: đo thời gian rơi và so sánh với t = √(2h/g).",
+       "Ném ngang (α = 0°) từ h₀ = 20 m với v₀ khác nhau: thời gian rơi có thay đổi không? Giải thích.",
+       "Đổi g thành 1,6 m/s² (Mặt Trăng): tầm xa thay đổi bao nhiêu lần?"],
+});
+
+/* 2. Mặt phẳng nghiêng */
+SIMS.push({
+  id: "mat-phang-nghieng", grade: 10, chap: "Động lực học", title: "Định luật II Newton trên mặt phẳng nghiêng",
+  blurb: "Vật trượt trên mặt phẳng nghiêng có ma sát. Lực kéo F song song với mặt nghiêng, hướng lên. Quan sát các lực và gia tốc.",
+  params: [
+    { id: "a", label: "Góc nghiêng α", min: 0, max: 60, step: 1, value: 30, unit: "°" },
+    { id: "mu", label: "Hệ số ma sát μ", min: 0, max: 0.8, step: 0.01, value: 0.2, unit: "" },
+    { id: "m", label: "Khối lượng m", min: 0.5, max: 10, step: 0.5, value: 2, unit: "kg" },
+    { id: "F", label: "Lực kéo F", min: 0, max: 100, step: 1, value: 0, unit: "N" },
+  ],
+  Lt: 4,
+  setup() { return { s: 2, v: 0, t: 0, a: 0, fms: 0, done: false }; },
+  forces(st, p) {
+    const r = p.a * Math.PI / 180, Px = p.m * G * Math.sin(r), N = p.m * G * Math.cos(r), drive = p.F - Px, fmax = p.mu * N;
+    if (Math.abs(st.v) < 1e-9) {
+      if (Math.abs(drive) <= fmax) return { a: 0, fms: -drive, Px, N };
+      const f = -Math.sign(drive) * fmax; return { a: (drive + f) / p.m, fms: f, Px, N };
+    }
+    const f = -Math.sign(st.v) * fmax; return { a: (drive + f) / p.m, fms: f, Px, N };
+  },
+  step(st, p, dt) {
+    const n = 8, h = dt / n;
+    for (let i = 0; i < n; i++) {
+      const f = this.forces(st, p); st.a = f.a; st.fms = f.fms;
+      const v0 = st.v; st.v += f.a * h;
+      if (v0 !== 0 && Math.sign(st.v) !== Math.sign(v0)) st.v = 0;
+      st.s += st.v * h; st.t += h;
+      if (st.s < 0.25 || st.s > this.Lt - 0.25) { st.s = clamp(st.s, 0.25, this.Lt - 0.25); st.v = 0; st.done = true; return "stop"; }
+    }
+  },
+  draw(ctx, W, H, st, p) {
+    const r = p.a * Math.PI / 180, co = Math.cos(r), si = Math.sin(r);
+    const ox = 50, oy = H - 44;
+    const Lpx = Math.min((W - 110) / co, (H - 110) / Math.max(si, 1e-3));
+    ctx.fillStyle = C.soft; ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + Lpx * co, oy); ctx.lineTo(ox + Lpx * co, oy - Lpx * si); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(ox, oy, 38, -r, 0); ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.font = FONT(12.5, 600); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText("α = " + p.a + "°", ox + 44, oy - 12);
+    const kL = Lpx / this.Lt, bw = 54, bh = 34;
+    const cx = ox + st.s * kL * co - si * bh / 2, cy = oy - st.s * kL * si - co * bh / 2;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-r);
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.accent; ctx.lineWidth = 2.5; ctx.fillRect(-bw / 2, -bh / 2, bw, bh); ctx.strokeRect(-bw / 2, -bh / 2, bw, bh);
+    ctx.fillStyle = C.accent; ctx.font = FONT(12, 600); ctx.textAlign = "center"; ctx.fillText(fmt(p.m, 1) + " kg", 0, 1);
+    ctx.restore();
+    const f = this.forces(st, p), kF = 80 / Math.max(p.m * G, p.F, 1);
+    arrow(ctx, cx, cy, cx, cy + p.m * G * kF, C.c1, 2.4, "P⃗");
+    arrow(ctx, cx, cy, cx - si * f.N * kF, cy - co * f.N * kF, C.c2, 2.4, "N⃗");
+    if (Math.abs(st.fms) > 1e-6) arrow(ctx, cx, cy, cx + co * st.fms * kF, cy - si * st.fms * kF, C.c3, 2.4, "F⃗ms");
+    if (p.F > 0) arrow(ctx, cx, cy, cx + co * p.F * kF, cy - si * p.F * kF, C.accent, 2.4, "F⃗");
+    ctx.fillStyle = C.muted; ctx.font = FONT(12.5, 500); ctx.textAlign = "left"; ctx.textBaseline = "top";
+    const state = Math.abs(st.v) < 1e-9 && st.a === 0 ? "Vật đứng yên (ma sát nghỉ)" : st.v > 0 ? "Vật đi lên" : st.v < 0 ? "Vật trượt xuống" : "Vật bắt đầu chuyển động";
+    ctx.fillText(state, 16, 14);
+  },
+  readouts(st, p) {
+    const f = this.forces(st, p);
+    return [["Gia tốc a", fmt(st.a || f.a) + " m/s²"], ["Vận tốc v", fmt(st.v) + " m/s"], ["Thời gian", fmt(st.t) + " s"], ["P sin α", fmt(f.Px) + " N"], ["Phản lực N", fmt(f.N) + " N"], ["Lực ma sát", fmt(Math.abs(st.fms || f.fms)) + " N"]];
+  },
+  cols: ["α (°)", "μ", "m (kg)", "F (N)", "a (m/s²)", "Fms (N)"],
+  record(st, p) { const f = this.forces(st, p); return [fmt(p.a, 0), fmt(p.mu), fmt(p.m, 1), fmt(p.F, 0), fmt(f.a), fmt(Math.abs(f.fms))]; },
+  qs: ["Với F = 0, μ = 0,3: tăng dần α để tìm góc nhỏ nhất làm vật bắt đầu trượt. So sánh tan α với μ.",
+       "Giữ α và μ, F = 0, thay đổi m: gia tốc có thay đổi không? Chứng minh bằng định luật II Newton.",
+       "Tìm lực F để vật chuyển động đều đi lên với m = 2 kg, α = 30°, μ = 0,2. Kiểm tra trên mô phỏng.",
+       "Ghi bảng a theo F (giữ m, α, μ). Vẽ đồ thị a(F) và nhận xét."],
+});
+
+/* 3. Va chạm */
+SIMS.push({
+  id: "va-cham", grade: 10, chap: "Động lượng", title: "Va chạm và bảo toàn động lượng",
+  blurb: "Hai xe trượt không ma sát trên đệm khí. Chiều dương hướng sang phải. So sánh động lượng của hệ trước và sau va chạm.",
+  params: [
+    { id: "m1", label: "Khối lượng xe 1 m₁", min: 0.1, max: 2, step: 0.1, value: 0.5, unit: "kg" },
+    { id: "m2", label: "Khối lượng xe 2 m₂", min: 0.1, max: 2, step: 0.1, value: 1, unit: "kg" },
+    { id: "v1", label: "Vận tốc xe 1 v₁", min: -2, max: 2, step: 0.1, value: 1.2, unit: "m/s" },
+    { id: "v2", label: "Vận tốc xe 2 v₂", min: -2, max: 2, step: 0.1, value: -0.4, unit: "m/s" },
+    { id: "e", label: "Loại va chạm", type: "select", value: "1", options: [["1", "Va chạm đàn hồi"], ["0.5", "Va chạm không đàn hồi (e = 0,5)"], ["0", "Va chạm mềm (hai xe dính nhau)"]] },
+  ],
+  Lt: 3, w: 0.3,
+  setup(p) { return { x1: 0.7, x2: 2.3, u1: p.v1, u2: p.v2, hit: false, done: false, pB: p.m1 * p.v1 + p.m2 * p.v2, kB: 0.5 * p.m1 * p.v1 ** 2 + 0.5 * p.m2 * p.v2 ** 2, a1: null, a2: null }; },
+  step(s, p, dt) {
+    s.x1 += s.u1 * dt; s.x2 += s.u2 * dt;
+    if (!s.hit && s.x2 - s.x1 <= this.w && s.u1 > s.u2) {
+      const e = +p.e, P = p.m1 * s.u1 + p.m2 * s.u2, M = p.m1 + p.m2;
+      const n1 = (P + p.m2 * e * (s.u2 - s.u1)) / M, n2 = (P + p.m1 * e * (s.u1 - s.u2)) / M;
+      s.u1 = n1; s.u2 = n2; s.hit = true; s.a1 = n1; s.a2 = n2; s.x1 = s.x2 - this.w;
+    }
+    if (s.x1 - this.w / 2 < 0 || s.x2 + this.w / 2 > this.Lt || (Math.abs(s.u1) < 1e-9 && Math.abs(s.u2) < 1e-9)) { s.done = true; return "stop"; }
+  },
+  draw(ctx, W, H, s, p) {
+    const ml = 30, k = (W - 2 * ml) / this.Lt, ty = H * 0.62;
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 3; line(ctx, ml, ty, W - ml, ty);
+    ctx.fillStyle = C.muted; ctx.font = MONO(10.5); ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let x = 0; x <= this.Lt + 1e-9; x += 0.5) { ctx.strokeStyle = C.muted; ctx.lineWidth = 1; line(ctx, ml + x * k, ty, ml + x * k, ty + 6); ctx.fillText(tlabel(x) + " m", ml + x * k, ty + 9); }
+    const cart = (x, m, u, col, name) => {
+      const cw = this.w * k * 0.96, ch = 20 + 16 * m, X = ml + x * k;
+      ctx.fillStyle = col; ctx.globalAlpha = 0.18; ctx.fillRect(X - cw / 2, ty - ch - 8, cw, ch); ctx.globalAlpha = 1;
+      ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.strokeRect(X - cw / 2, ty - ch - 8, cw, ch);
+      ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(X - cw / 3, ty - 4, 4, 0, 7); ctx.arc(X + cw / 3, ty - 4, 4, 0, 7); ctx.fill();
+      ctx.fillStyle = col; ctx.font = FONT(12, 600); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(name + " · " + fmt(m, 1) + " kg", X, ty - ch / 2 - 8);
+      arrow(ctx, X, ty - ch - 24, X + u * 55, ty - ch - 24, col, 2.4);
+      ctx.fillStyle = col; ctx.font = MONO(11.5); ctx.textBaseline = "bottom"; ctx.fillText(fmt(u) + " m/s", X, ty - ch - 32);
+    };
+    cart(s.x1, p.m1, s.u1, C.c2, "Xe 1"); cart(s.x2, p.m2, s.u2, C.c1, "Xe 2");
+    // thanh động lượng
+    const pNow = p.m1 * s.u1 + p.m2 * s.u2, pmax = Math.max(Math.abs(p.m1 * p.v1) + Math.abs(p.m2 * p.v2), 0.1);
+    const bx = W / 2, bw = Math.min(W * 0.32, 220) / pmax;
+    ctx.font = FONT(12, 500); ctx.textBaseline = "middle"; ctx.textAlign = "right"; ctx.fillStyle = C.ink;
+    ctx.fillText("p hệ trước va chạm", bx - Math.min(W * 0.32, 220) - 8, 26); ctx.fillText(s.hit ? "p hệ sau va chạm" : "p hệ hiện tại", bx - Math.min(W * 0.32, 220) - 8, 50);
+    ctx.fillStyle = C.accent; ctx.fillRect(Math.min(bx, bx + s.pB * bw), 18, Math.abs(s.pB * bw), 16);
+    ctx.fillStyle = C.c3; ctx.fillRect(Math.min(bx, bx + pNow * bw), 42, Math.abs(pNow * bw), 16);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1; line(ctx, bx, 12, bx, 64);
+    ctx.textAlign = "left"; ctx.font = MONO(11.5); ctx.fillStyle = C.ink;
+    ctx.fillText(fmt(s.pB) + " kg·m/s", bx + Math.max(0, s.pB * bw) + 8, 26); ctx.fillText(fmt(pNow) + " kg·m/s", bx + Math.max(0, pNow * bw) + 8, 50);
+    if (p.v1 <= p.v2) { ctx.fillStyle = C.c1; ctx.font = FONT(12.5, 600); ctx.textAlign = "center"; ctx.fillText("Với vận tốc này hai xe không gặp nhau", W / 2, H - 22); }
+  },
+  readouts(s, p) {
+    const p1 = p.m1 * s.u1, p2 = p.m2 * s.u2, K = 0.5 * p.m1 * s.u1 ** 2 + 0.5 * p.m2 * s.u2 ** 2;
+    return [["p₁", fmt(p1) + " kg·m/s"], ["p₂", fmt(p2) + " kg·m/s"], ["p hệ", fmt(p1 + p2) + " kg·m/s"], ["Wđ hệ trước", fmt(s.kB, 3) + " J"], ["Wđ hệ hiện tại", fmt(K, 3) + " J"]];
+  },
+  cols: ["m₁ (kg)", "m₂ (kg)", "v₁ (m/s)", "v₂ (m/s)", "v₁' (m/s)", "v₂' (m/s)", "p trước", "p sau", "Wđ trước (J)", "Wđ sau (J)"],
+  record(s, p) {
+    if (!s.hit) return "Chạy cho hai xe va chạm rồi mới ghi số liệu.";
+    const K = 0.5 * p.m1 * s.a1 ** 2 + 0.5 * p.m2 * s.a2 ** 2;
+    return [fmt(p.m1, 1), fmt(p.m2, 1), fmt(p.v1, 1), fmt(p.v2, 1), fmt(s.a1), fmt(s.a2), fmt(s.pB), fmt(p.m1 * s.a1 + p.m2 * s.a2), fmt(s.kB, 3), fmt(K, 3)];
+  },
+  qs: ["Thực hiện 3 loại va chạm với cùng m và v. Động lượng hệ có bảo toàn không? Động năng hệ thì sao?",
+       "Va chạm đàn hồi với m₁ = m₂, xe 2 đứng yên: nhận xét vận tốc hai xe sau va chạm.",
+       "Va chạm mềm: tính vận tốc chung theo công thức v = (m₁v₁ + m₂v₂)/(m₁ + m₂) và so sánh với mô phỏng.",
+       "Phần động năng bị mất trong va chạm mềm đã chuyển thành dạng năng lượng nào?"],
+});
+
+/* 4. Con lắc lò xo */
+SIMS.push({
+  id: "con-lac-lo-xo", grade: 11, chap: "Dao động", title: "Con lắc lò xo – dao động điều hoà",
+  blurb: "Con lắc lò xo nằm ngang. Đồ thị li độ – thời gian vẽ trực tiếp. Bật lực cản để quan sát dao động tắt dần.",
+  params: [
+    { id: "k", label: "Độ cứng k", min: 10, max: 200, step: 5, value: 40, unit: "N/m" },
+    { id: "m", label: "Khối lượng m", min: 0.1, max: 2, step: 0.05, value: 0.4, unit: "kg" },
+    { id: "A", label: "Biên độ ban đầu A", min: 1, max: 10, step: 0.5, value: 6, unit: "cm" },
+    { id: "b", label: "Hệ số lực cản b", min: 0, max: 2, step: 0.05, value: 0, unit: "kg/s", live: true },
+  ],
+  setup(p) { return { x: p.A / 100, v: 0, t: 0, hist: [[0, p.A]], cross: [], Tm: null }; },
+  step(s, p, dt) {
+    const n = 20, h = dt / n;
+    for (let i = 0; i < n; i++) {
+      const xo = s.x; s.v += (-p.k * s.x - p.b * s.v) / p.m * h; s.x += s.v * h; s.t += h;
+      if (xo < 0 && s.x >= 0) { s.cross.push(s.t); if (s.cross.length >= 2) s.Tm = s.cross[s.cross.length - 1] - s.cross[s.cross.length - 2]; }
+    }
+    s.hist.push([s.t, s.x * 100]);
+    while (s.hist.length && s.hist[0][0] < s.t - 8) s.hist.shift();
+  },
+  draw(ctx, W, H, s, p) {
+    const top = H * 0.44, ty = top - 24, wall = 28, xe = W * 0.5, nat = xe - 27 - wall, sc = nat * 0.55 / 0.1;
+    ctx.fillStyle = C.line; ctx.fillRect(wall - 12, 22, 12, ty - 22 + 6);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; line(ctx, wall - 12, ty + 6, W - 20, ty + 6);
+    ctx.strokeStyle = C.muted; ctx.setLineDash([4, 4]); ctx.lineWidth = 1; line(ctx, xe, 24, xe, ty + 14); ctx.setLineDash([]);
+    ctx.fillStyle = C.muted; ctx.font = FONT(11.5, 500); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("O", xe, ty + 12);
+    const bx = xe + s.x * sc, bw = 54, bh = 40, cy = ty + 6 - bh / 2, sx2 = bx - bw / 2;
+    ctx.strokeStyle = C.c3; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(wall, cy);
+    const coils = 14, seg = (sx2 - wall - 16) / coils;
+    ctx.lineTo(wall + 8, cy);
+    for (let i = 0; i < coils; i++) ctx.lineTo(wall + 8 + seg * (i + 0.5), cy + (i % 2 ? -11 : 11));
+    ctx.lineTo(sx2 - 8, cy); ctx.lineTo(sx2, cy); ctx.stroke();
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.accent; ctx.lineWidth = 2.5; ctx.fillRect(sx2, cy - bh / 2, bw, bh); ctx.strokeRect(sx2, cy - bh / 2, bw, bh);
+    ctx.fillStyle = C.accent; ctx.font = FONT(12, 600); ctx.textBaseline = "middle"; ctx.fillText("m", bx, cy);
+    const Am = p.A * 1.15;
+    graph(ctx, 56, top + 22, W - 76, H - top - 50, { x0: Math.max(0, s.t - 8), x1: Math.max(8, s.t), y0: -Am, y1: Am, xl: "t (s)", yl: "x (cm)", series: [{ pts: s.hist, color: C.accent, lw: 2.2 }] });
+  },
+  readouts(s, p) {
+    const T = 2 * Math.PI * Math.sqrt(p.m / p.k), Wd = 0.5 * p.m * s.v * s.v * 1000, Wt = 0.5 * p.k * s.x * s.x * 1000;
+    return [["T lí thuyết", fmt(T, 3) + " s"], ["T đo được", s.Tm ? fmt(s.Tm, 3) + " s" : "chờ 2 chu kì"], ["Li độ x", fmt(s.x * 100) + " cm"], ["Vận tốc v", fmt(s.v) + " m/s"], ["Động năng", fmt(Wd, 1) + " mJ"], ["Thế năng", fmt(Wt, 1) + " mJ"], ["Cơ năng", fmt(Wd + Wt, 1) + " mJ"]];
+  },
+  cols: ["k (N/m)", "m (kg)", "A (cm)", "b (kg/s)", "T lí thuyết (s)", "T đo (s)"],
+  record(s, p) { if (!s.Tm) return "Chạy ít nhất 2 chu kì để đo được T."; return [fmt(p.k, 0), fmt(p.m), fmt(p.A, 1), fmt(p.b), fmt(2 * Math.PI * Math.sqrt(p.m / p.k), 3), fmt(s.Tm, 3)]; },
+  qs: ["Giữ k = 40 N/m, đo T với m = 0,1; 0,4; 1,6 kg. Khi m tăng 4 lần, T tăng mấy lần?",
+       "Chu kì có phụ thuộc biên độ A không? Kiểm tra với A = 2 cm và A = 10 cm.",
+       "Quan sát động năng, thế năng: ở vị trí nào động năng cực đại? Cơ năng có không đổi không (b = 0)?",
+       "Đặt b = 0,3 kg/s: mô tả biên độ và cơ năng theo thời gian. Nêu ví dụ dao động tắt dần trong đời sống."],
+});
+
+/* 5. Sóng dừng */
+SIMS.push({
+  id: "song-dung", grade: 11, chap: "Sóng", title: "Sóng dừng trên sợi dây hai đầu cố định",
+  blurb: "Đầu A nối với cần rung, đầu B cố định. Thay đổi tần số để tìm các trường hợp có sóng dừng. Chuyển động được làm chậm để dễ quan sát.",
+  params: [
+    { id: "f", label: "Tần số cần rung f", min: 5, max: 120, step: 0.5, value: 25, unit: "Hz", live: true },
+    { id: "v", label: "Tốc độ truyền sóng v", min: 10, max: 60, step: 1, value: 30, unit: "m/s", live: true },
+    { id: "L", label: "Chiều dài dây L", min: 0.5, max: 2, step: 0.05, value: 1.2, unit: "m", live: true },
+  ],
+  setup() { return { t: 0 }; },
+  step(s, p, dt) { s.t += dt; },
+  info(p) { const lam = p.v / p.f, nr = 2 * p.L / lam, n = Math.round(nr); return { lam, nr, n, res: n >= 1 && Math.abs(nr - n) < 0.06 }; },
+  draw(ctx, W, H, s, p) {
+    const ml = 60, mr = 40, cy = H * 0.5, Lpx = W - ml - mr, I = this.info(p), k = 2 * Math.PI / I.lam;
+    let sD = Math.sin(k * p.L); if (Math.abs(sD) < 0.1) sD = 0.1 * (sD < 0 ? -1 : 1);
+    const amp = (x) => Math.sin(k * (p.L - x)) / sD * 0.1, Ymax = H * 0.32;
+    const ph = Math.cos(2 * Math.PI * 0.9 * s.t);
+    ctx.fillStyle = C.line; ctx.fillRect(ml - 34, cy - 30, 26, 60); ctx.fillRect(W - mr, cy - 40, 14, 80);
+    ctx.fillStyle = C.muted; ctx.font = FONT(11.5, 500); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("Cần rung", ml - 21, cy + 34); ctx.fillText("B", W - mr + 7, cy + 44);
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1; line(ctx, ml, cy, W - mr, cy);
+    const N = 240;
+    // bao hình
+    ctx.strokeStyle = C.muted; ctx.globalAlpha = 0.45; ctx.setLineDash([3, 4]);
+    for (const sg of [1, -1]) { ctx.beginPath(); for (let i = 0; i <= N; i++) { const x = p.L * i / N, y = sg * amp(x) * Ymax; i ? ctx.lineTo(ml + Lpx * i / N, cy - y) : ctx.moveTo(ml, cy - y); } ctx.stroke(); }
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.strokeStyle = I.res ? C.accent : C.c3; ctx.lineWidth = 2.6; ctx.beginPath();
+    for (let i = 0; i <= N; i++) { const x = p.L * i / N, y = amp(x) * Ymax * ph; i ? ctx.lineTo(ml + Lpx * i / N, cy - y) : ctx.moveTo(ml, cy - y); }
+    ctx.stroke();
+    if (I.res) {
+      ctx.font = FONT(11.5, 600); ctx.textAlign = "center";
+      for (let j = 0; j <= I.n; j++) { const px = ml + Lpx * j / I.n; ctx.fillStyle = C.c1; ctx.beginPath(); ctx.arc(px, cy, 4.5, 0, 7); ctx.fill(); if (I.n <= 12) { ctx.textBaseline = "top"; ctx.fillText("N", px, cy + Ymax * 0.32 + 30); } }
+      if (I.n <= 12) for (let j = 0; j < I.n; j++) { const px = ml + Lpx * (j + 0.5) / I.n; ctx.fillStyle = C.c2; ctx.textBaseline = "bottom"; ctx.fillText("B", px, cy - Ymax - 6); }
+    }
+    ctx.fillStyle = I.res ? C.accent : C.muted; ctx.font = FONT(13, 600); ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(I.res ? `Có sóng dừng: ${I.n} bó sóng, ${I.n + 1} nút (N), ${I.n} bụng (B)` : "Chưa có sóng dừng ổn định – thử thay đổi f", 16, 14);
+  },
+  readouts(s, p) {
+    const I = this.info(p), n = Math.max(1, I.n), fn = n * p.v / (2 * p.L);
+    return [["Bước sóng λ = v/f", fmt(I.lam, 3) + " m"], ["2L/λ", fmt(I.nr, 2)], ["Trạng thái", I.res ? "Sóng dừng, " + I.n + " bó" : "Chưa có"], ["f gần nhất có sóng dừng", fmt(fn, 1) + " Hz"], ["Tần số cơ bản f₁", fmt(p.v / (2 * p.L), 2) + " Hz"]];
+  },
+  cols: ["L (m)", "v (m/s)", "f (Hz)", "λ (m)", "Số bó n", "n·λ/2 (m)"],
+  record(s, p) { const I = this.info(p); if (!I.res) return "Chỉ ghi khi đang có sóng dừng."; return [fmt(p.L), fmt(p.v, 0), fmt(p.f, 1), fmt(I.lam, 3), String(I.n), fmt(I.n * I.lam / 2, 3)]; },
+  qs: ["Với L = 1,2 m, v = 30 m/s: tìm 4 tần số liên tiếp có sóng dừng. Hiệu hai tần số liên tiếp bằng bao nhiêu?",
+       "Từ bảng số liệu, kiểm tra điều kiện L = n·λ/2.",
+       "Khoảng cách giữa hai nút liên tiếp bằng bao nhiêu lần bước sóng?",
+       "Tăng tốc độ truyền sóng v (dây căng hơn): các tần số có sóng dừng thay đổi thế nào? Liên hệ với việc lên dây đàn guitar."],
+});
+
+/* 6. Điện trường – Coulomb */
+SIMS.push({
+  id: "dien-truong", grade: 11, chap: "Trường điện", title: "Định luật Coulomb và điện trường",
+  blurb: "Hai điện tích điểm đặt trong chân không. Mũi tên nhỏ chỉ hướng điện trường tại từng điểm, càng đậm thì điện trường càng mạnh.",
+  static: true,
+  params: [
+    { id: "q1", label: "Điện tích q₁", min: -10, max: 10, step: 0.5, value: 4, unit: "μC", live: true },
+    { id: "q2", label: "Điện tích q₂", min: -10, max: 10, step: 0.5, value: -4, unit: "μC", live: true },
+    { id: "r", label: "Khoảng cách r", min: 0.1, max: 1, step: 0.02, value: 0.5, unit: "m", live: true },
+  ],
+  setup() { return {}; },
+  step() {},
+  F(p) { return 9e9 * Math.abs(p.q1 * p.q2) * 1e-12 / (p.r * p.r); },
+  draw(ctx, W, H, s, p) {
+    const sc = Math.min(W * 0.62, H * 1.1) / 1.0, cy = H * 0.5, x1 = W / 2 - p.r * sc / 2, x2 = W / 2 + p.r * sc / 2;
+    const Q = [[x1, p.q1], [x2, p.q2]], gap = 30;
+    for (let gy = gap / 2; gy < H; gy += gap) for (let gx = gap / 2; gx < W; gx += gap) {
+      let ex = 0, ey = 0, near = false;
+      for (const [qx, q] of Q) { const dx = (gx - qx) / sc, dy = (gy - cy) / sc, d2 = dx * dx + dy * dy, d = Math.sqrt(d2); if (d * sc < 22) near = true; const e = 9e9 * q * 1e-6 / d2; ex += e * dx / d; ey += e * dy / d; }
+      const E = Math.hypot(ex, ey); if (near || E === 0) continue;
+      const a = clamp(0.12 + 0.17 * Math.log10(E / 2e4), 0.1, 1), ux = ex / E, uy = ey / E;
+      ctx.globalAlpha = a; arrow(ctx, gx - ux * 9, gy - uy * 9, gx + ux * 9, gy + uy * 9, C.muted, 1.3); ctx.globalAlpha = 1;
+    }
+    const F = this.F(p), same = p.q1 * p.q2 > 0, fl = F > 0 ? clamp(40 + 28 * Math.log10(F / 0.05), 18, W * 0.2) : 0;
+    if (fl) { const d = same ? -1 : 1; arrow(ctx, x1, cy, x1 + d * fl, cy, C.c3, 3, "F⃗₂₁"); arrow(ctx, x2, cy, x2 - d * fl, cy, C.c3, 3, "F⃗₁₂"); }
+    for (const [qx, q] of Q) {
+      ctx.fillStyle = q > 0 ? C.c1 : q < 0 ? C.c2 : C.muted; ctx.beginPath(); ctx.arc(qx, cy, 16, 0, 7); ctx.fill();
+      ctx.fillStyle = C.surface; ctx.font = FONT(16, 700); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(q > 0 ? "+" : q < 0 ? "−" : "0", qx, cy + 1);
+      ctx.fillStyle = C.ink; ctx.font = MONO(12); ctx.fillText((q > 0 ? "+" : "") + fmt(q, 1) + " μC", qx, cy - 30);
+    }
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1; const ly = cy + 44; line(ctx, x1, ly, x2, ly); line(ctx, x1, ly - 5, x1, ly + 5); line(ctx, x2, ly - 5, x2, ly + 5);
+    ctx.fillStyle = C.ink; ctx.font = MONO(12); ctx.textBaseline = "top"; ctx.fillText("r = " + fmt(p.r) + " m", W / 2, ly + 6);
+  },
+  readouts(s, p) {
+    const F = this.F(p), em = 9e9 * (p.q1 - p.q2) * 1e-6 / ((p.r / 2) ** 2);
+    return [["Lực tương tác F", fmt(F, 3) + " N"], ["Tính chất", p.q1 * p.q2 > 0 ? "Đẩy nhau" : p.q1 * p.q2 < 0 ? "Hút nhau" : "Không tương tác"], ["E tại trung điểm", fmt(Math.abs(em), 0) + " V/m"]];
+  },
+  cols: ["q₁ (μC)", "q₂ (μC)", "r (m)", "F (N)", "F·r² (N·m²)"],
+  record(s, p) { const F = this.F(p); return [fmt(p.q1, 1), fmt(p.q2, 1), fmt(p.r), fmt(F, 4), fmt(F * p.r * p.r, 4)]; },
+  qs: ["Giữ q₁, q₂; ghi F với r = 0,2; 0,4; 0,8 m. Khi r tăng gấp đôi, F giảm mấy lần? Nhận xét cột F·r².",
+       "Đổi dấu một điện tích: độ lớn và chiều của lực thay đổi thế nào?",
+       "Đặt q₁ = q₂ = +4 μC: quan sát mũi tên điện trường ở giữa hai điện tích. Có điểm nào điện trường bằng 0 không?",
+       "Vì sao hai lực F⃗₁₂ và F⃗₂₁ luôn cùng độ lớn? Liên hệ định luật III Newton."],
+});
+
+/* 7. Khí lí tưởng */
+SIMS.push({
+  id: "khi-li-tuong", grade: 12, chap: "Khí lí tưởng", title: "Mô hình động học phân tử chất khí",
+  blurb: "Các phân tử chuyển động hỗn loạn và va chạm vào thành bình, gây ra áp suất. Mỗi chấm đại diện cho 1 mmol khí. Kéo pít-tông bằng thanh trượt thể tích.",
+  params: [
+    { id: "N", label: "Lượng khí n", min: 20, max: 300, step: 10, value: 120, unit: "mmol" },
+    { id: "T", label: "Nhiệt độ T", min: 100, max: 800, step: 10, value: 300, unit: "K", live: true },
+    { id: "V", label: "Thể tích V", min: 1, max: 5, step: 0.1, value: 3, unit: "L", live: true },
+  ],
+  geo(W, H) { const x0 = 36, y0 = 30, bh = H - 80, wmax = W - x0 - 70; return { x0, y0, bh, wmax, c: (wmax / 600) * 9.24 }; },
+  setup(p, W, H) {
+    const g = this.geo(W, H), bw = g.wmax * p.V / 5, pts = [];
+    const sig = g.c * Math.sqrt(p.T / 2);
+    for (let i = 0; i < p.N; i++) pts.push({ x: g.x0 + 4 + Math.random() * (bw - 8), y: g.y0 + 4 + Math.random() * (g.bh - 8), vx: gauss() * sig, vy: gauss() * sig });
+    return { pts, T: p.T, imp: 0, tt: 0, pm: null, W, H, t: 0 };
+  },
+  step(s, p, dt) {
+    const g = this.geo(s.W, s.H), bw = g.wmax * p.V / 5, r = 3;
+    if (p.T !== s.T) { const f = Math.sqrt(p.T / s.T); for (const q of s.pts) { q.vx *= f; q.vy *= f; } s.T = p.T; }
+    const L = g.x0 + r, R = g.x0 + bw - r, Tp = g.y0 + r, B = g.y0 + g.bh - r;
+    const n = 2, h = dt / n;
+    for (let k = 0; k < n; k++) for (const q of s.pts) {
+      q.x += q.vx * h; q.y += q.vy * h;
+      if (q.x < L) { q.x = 2 * L - q.x; s.imp += 2 * Math.abs(q.vx); q.vx = Math.abs(q.vx); }
+      if (q.x > R) { if (q.x > R + 40) q.x = R; else q.x = 2 * R - q.x; if (q.vx > 0) s.imp += 2 * q.vx; q.vx = -Math.abs(q.vx); }
+      if (q.y < Tp) { q.y = 2 * Tp - q.y; s.imp += 2 * Math.abs(q.vy); q.vy = Math.abs(q.vy); }
+      if (q.y > B) { q.y = 2 * B - q.y; s.imp += 2 * Math.abs(q.vy); q.vy = -Math.abs(q.vy); }
+    }
+    s.tt += dt; s.t += dt;
+    if (s.tt > 0.5) {
+      const per = 2 * (bw + g.bh), K = 8.31 * 2 * g.bh * g.wmax / (5 * g.c * g.c);
+      const pk = s.imp / (s.tt * per) * K / 1000;
+      s.pm = s.pm === null ? pk : s.pm * 0.6 + pk * 0.4; s.imp = 0; s.tt = 0;
+    }
+  },
+  draw(ctx, W, H, s, p) {
+    const g = this.geo(W, H), bw = g.wmax * p.V / 5, rms = g.c * Math.sqrt(p.T);
+    ctx.fillStyle = C.soft; ctx.fillRect(g.x0, g.y0, bw, g.bh);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(g.x0 + g.wmax + 20, g.y0); ctx.lineTo(g.x0, g.y0); ctx.lineTo(g.x0, g.y0 + g.bh); ctx.lineTo(g.x0 + g.wmax + 20, g.y0 + g.bh); ctx.stroke();
+    ctx.fillStyle = C.muted; ctx.fillRect(g.x0 + bw, g.y0 + 2, 10, g.bh - 4); ctx.fillRect(g.x0 + bw + 10, g.y0 + g.bh / 2 - 4, W - g.x0 - bw - 20, 8);
+    for (const q of s.pts) {
+      if (q.x > g.x0 + bw) continue;
+      const sp = Math.hypot(q.vx, q.vy);
+      ctx.fillStyle = sp > 1.3 * rms ? C.c1 : sp < 0.6 * rms ? C.c2 : C.accent;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 3, 0, 7); ctx.fill();
+    }
+    ctx.font = FONT(11.5, 500); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillStyle = C.muted;
+    ctx.fillText("Pít-tông", g.x0 + bw + 14, g.y0 + g.bh / 2 + 8);
+    legend(ctx, g.x0, g.y0 + g.bh + 18, [["chậm", C.c2], ["trung bình", C.accent], ["nhanh", C.c1]]);
+  },
+  readouts(s, p) {
+    const pt = p.N * 1e-3 * 8.31 * p.T / (p.V * 1e-3) / 1000;
+    return [["p đo được", s.pm === null ? "đang đo…" : fmt(s.pm, 1) + " kPa"], ["p = nRT/V", fmt(pt, 1) + " kPa"], ["V", fmt(p.V, 1) + " L"], ["T", fmt(p.T, 0) + " K"], ["pV/T (lí thuyết)", fmt(pt * p.V / p.T, 3) + " J/K"]];
+  },
+  cols: ["n (mol)", "T (K)", "V (L)", "p đo (kPa)", "p·V (J)", "p/T (kPa/K)", "V/T (L/K)"],
+  record(s, p) { if (s.pm === null) return "Chạy vài giây để đo áp suất."; return [fmt(p.N / 1000, 3), fmt(p.T, 0), fmt(p.V, 1), fmt(s.pm, 1), fmt(s.pm * p.V, 1), fmt(s.pm / p.T, 4), fmt(p.V / p.T, 4)]; },
+  qs: ["Định luật Boyle: giữ T = 300 K, ghi p với V = 1, 2, 3, 4, 5 L. Nhận xét cột p·V.",
+       "Giữ V không đổi, tăng T từ 200 K lên 400 K. Nhận xét cột p/T.",
+       "Định luật Charles: tăng T rồi điều chỉnh V sao cho p đo được giữ khoảng 100 kPa. Nhận xét cột V/T.",
+       "Vì sao áp suất đo được dao động quanh giá trị lí thuyết? Khi lượng khí n lớn hơn thì dao động thay đổi ra sao?"],
+});
+
+/* 8. Cảm ứng điện từ */
+SIMS.push({
+  id: "cam-ung-dien-tu", grade: 12, chap: "Từ trường", title: "Hiện tượng cảm ứng điện từ",
+  blurb: "Đưa nam châm lại gần và ra xa cuộn dây nối với điện kế (điện trở mạch 10 Ω). Chọn chế độ “Tự kéo” để tự di chuyển nam châm bằng chuột hoặc ngón tay.",
+  params: [
+    { id: "N", label: "Số vòng dây N", min: 50, max: 500, step: 10, value: 200, unit: "vòng", live: true },
+    { id: "B", label: "Cảm ứng từ của nam châm", min: 0.05, max: 0.5, step: 0.01, value: 0.2, unit: "T", live: true },
+    { id: "mode", label: "Cách di chuyển", type: "select", value: "auto", options: [["auto", "Tự động (lại gần – ra xa)"], ["drag", "Tự kéo bằng chuột"]], live: true },
+    { id: "f", label: "Tần số di chuyển (tự động)", min: 0.1, max: 2, step: 0.05, value: 0.5, unit: "Hz", live: true },
+  ],
+  A: Math.PI * 0.02 * 0.02, a0: 0.05,
+  g(x) { const u = x / this.a0; return Math.pow(1 + u * u, -1.5); },
+  setup() { return { t: 0, x: -0.31, tx: -0.31, ph: 0, v: 0, e: 0, hist: [], drag: false }; },
+  step(s, p, dt) {
+    const xo = s.x;
+    if (p.mode === "auto") { s.ph += 2 * Math.PI * p.f * dt; s.x = -0.17 - 0.14 * Math.cos(s.ph); }
+    else s.x += (s.tx - s.x) * Math.min(1, dt * 18);
+    s.t += dt;
+    const ve = (s.x - xo) / dt; s.v = s.v * 0.5 + ve * 0.5;
+    const phi1 = p.N * p.B * this.A * this.g(xo), phi2 = p.N * p.B * this.A * this.g(s.x);
+    s.e = s.e * 0.4 - (phi2 - phi1) / dt * 0.6;
+    s.hist.push([s.t, s.e]); while (s.hist.length && s.hist[0][0] < s.t - 6) s.hist.shift();
+  },
+  geo(W, H) { const sc = Math.min(W * 0.62 / 0.42, 1100), xc = W * 0.6, ay = H * 0.27; return { sc, xc, ay }; },
+  draw(ctx, W, H, s, p) {
+    const { sc, xc, ay } = this.geo(W, H), cl = 0.1 * sc, ry = Math.min(40, H * 0.09);
+    const loops = clamp(Math.round(p.N / 25), 4, 20);
+    ctx.strokeStyle = C.c3; ctx.lineWidth = 2.2;
+    for (let i = 0; i < loops; i++) { const x = xc - cl / 2 + cl * i / (loops - 1); ctx.beginPath(); ctx.ellipse(x, ay, 6, ry, 0, 0, 2 * Math.PI); ctx.stroke(); }
+    // nam châm
+    const ml = 0.08 * sc, mx = xc + s.x * sc, mh = Math.min(28, ry * 0.8);
+    ctx.fillStyle = C.c2; ctx.fillRect(mx - ml / 2, ay - mh / 2, ml / 2, mh);
+    ctx.fillStyle = C.c1; ctx.fillRect(mx, ay - mh / 2, ml / 2, mh);
+    ctx.fillStyle = "#ffffff"; ctx.font = FONT(13, 700); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("S", mx - ml / 4, ay + 1); ctx.fillText("N", mx + ml / 4, ay + 1);
+    if (p.mode === "drag") { ctx.fillStyle = C.muted; ctx.font = FONT(11.5, 500); ctx.textBaseline = "top"; ctx.fillText("↔ kéo nam châm", mx, ay + mh / 2 + 6); }
+    // điện kế
+    const I = s.e / 10 * 1000, gr = Math.min(48, W * 0.09), gx = W - gr - 22, gy = ay + ry + 30;
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5;
+    line(ctx, xc - cl / 2, ay + ry, xc - cl / 2, gy + gr * 0.4); line(ctx, xc - cl / 2, gy + gr * 0.4, gx - gr * 0.7, gy + gr * 0.4);
+    line(ctx, xc + cl / 2, ay + ry, xc + cl / 2, gy + gr * 0.2); line(ctx, xc + cl / 2, gy + gr * 0.2, gx - gr, gy + gr * 0.2);
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(gx, gy, gr, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.font = MONO(9.5); ctx.fillStyle = C.muted;
+    for (const v of [-100, -50, 0, 50, 100]) { const an = -Math.PI / 2 + v / 100 * 1.1; ctx.strokeStyle = C.muted; ctx.lineWidth = 1; line(ctx, gx + Math.cos(an) * gr * 0.82, gy + Math.sin(an) * gr * 0.82, gx + Math.cos(an) * gr * 0.95, gy + Math.sin(an) * gr * 0.95); }
+    const an = -Math.PI / 2 + clamp(I / 100, -1, 1) * 1.1;
+    ctx.strokeStyle = C.c1; ctx.lineWidth = 2.5; line(ctx, gx, gy, gx + Math.cos(an) * gr * 0.85, gy + Math.sin(an) * gr * 0.85);
+    ctx.fillStyle = C.ink; ctx.font = FONT(12, 600); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("mA", gx, gy - gr * 0.45); ctx.fillText("Điện kế (±100 mA)", gx, gy + 6);
+    // giải thích Lenz
+    ctx.textAlign = "left"; ctx.font = FONT(12.5, 500); ctx.fillStyle = C.ink;
+    const big = Math.abs(s.e) > 0.01;
+    const msg = !big ? "Từ thông không đổi → không có dòng điện cảm ứng" : s.v > 0 ? "Từ thông tăng → dòng cảm ứng làm đầu cuộn dây gần nam châm thành cực N, đẩy nam châm ra" : "Từ thông giảm → dòng cảm ứng làm đầu cuộn dây gần nam châm thành cực S, hút nam châm lại";
+    ctx.fillText(msg, 14, 10, W - 28);
+    const em = Math.max(0.2, ...s.hist.map((q) => Math.abs(q[1]))) * 1.15, top = H * 0.58;
+    graph(ctx, 56, top + 18, W - 76, H - top - 46, { x0: Math.max(0, s.t - 6), x1: Math.max(6, s.t), y0: -em, y1: em, xl: "t (s)", yl: "suất điện động cảm ứng e (V)", series: [{ pts: s.hist, color: C.c1, lw: 2 }] });
+  },
+  pointer(type, x, y, s, p, W, H) {
+    if (p.mode !== "drag") return;
+    const { sc, xc } = this.geo(W, H);
+    if (type === "down") s.drag = true;
+    if (type === "up") s.drag = false;
+    if (s.drag) s.tx = clamp((x - xc) / sc, -0.38, 0.08);
+  },
+  readouts(s, p) {
+    const phi = p.N * p.B * this.A * this.g(s.x) * 1000, I = s.e / 10 * 1000;
+    const em = s.hist.length ? Math.max(...s.hist.map((q) => Math.abs(q[1]))) : 0;
+    return [["Từ thông Φ", fmt(phi, 2) + " mWb"], ["Suất điện động e", fmt(s.e, 3) + " V"], ["Cường độ dòng i", fmt(I, 1) + " mA"], ["|e| lớn nhất (6 s gần nhất)", fmt(em, 3) + " V"], ["Nam châm", Math.abs(s.v) < 0.005 ? "đứng yên" : s.v > 0 ? "lại gần" : "ra xa"]];
+  },
+  cols: ["N (vòng)", "B (T)", "f (Hz)", "|e| max (V)"],
+  record(s, p) { if (s.t < 2.5 || p.mode !== "auto") return "Dùng chế độ tự động và chạy ít nhất 1 chu kì rồi ghi."; const em = Math.max(...s.hist.map((q) => Math.abs(q[1]))); return [fmt(p.N, 0), fmt(p.B), fmt(p.f), fmt(em, 3)]; },
+  qs: ["Khi nào kim điện kế lệch? Khi nam châm đứng yên trong cuộn dây có dòng điện không?",
+       "So sánh chiều lệch của kim điện kế khi đưa nam châm lại gần và khi kéo ra xa. Giải thích bằng định luật Lenz.",
+       "Giữ B, f; tăng N gấp đôi. |e| max thay đổi thế nào? Tương tự khi tăng f gấp đôi.",
+       "Từ thí nghiệm, phát biểu định luật Faraday về độ lớn suất điện động cảm ứng."],
+});
+
+/* 9. Phóng xạ */
+SIMS.push({
+  id: "phong-xa", grade: 12, chap: "Vật lí hạt nhân", title: "Định luật phóng xạ – chu kì bán rã",
+  blurb: "Mỗi chấm là một hạt nhân. Hạt nhân phân rã ngẫu nhiên; sau mỗi chu kì bán rã, số hạt nhân còn lại giảm khoảng một nửa.",
+  params: [
+    { id: "N0", label: "Số hạt nhân ban đầu N₀", min: 100, max: 2500, step: 100, value: 900, unit: "" },
+    { id: "T", label: "Chu kì bán rã T", min: 1, max: 20, step: 0.5, value: 5, unit: "s" },
+  ],
+  setup(p) { return { t: 0, alive: new Float32Array(p.N0).fill(-1), N: p.N0, hist: [[0, p.N0]], lastH: 0, done: false }; },
+  step(s, p, dt) {
+    const pr = 1 - Math.pow(2, -dt / p.T);
+    for (let i = 0; i < s.alive.length; i++) if (s.alive[i] < 0 && Math.random() < pr) { s.alive[i] = s.t + dt; s.N--; }
+    s.t += dt;
+    if (s.t - s.lastH >= 0.1) { s.hist.push([s.t, s.N]); s.lastH = s.t; }
+    if (s.t >= 5 * p.T || s.N === 0) { s.hist.push([s.t, s.N]); s.done = true; return "stop"; }
+  },
+  draw(ctx, W, H, s, p) {
+    const narrow = W < 560, side = narrow ? Math.min(W - 32, H * 0.42) : Math.min(H - 40, W * 0.42);
+    const cols = Math.ceil(Math.sqrt(p.N0)), d = side / cols, ox = narrow ? (W - side) / 2 : 20, oy = 20;
+    for (let i = 0; i < s.alive.length; i++) {
+      const cx = ox + (i % cols + 0.5) * d, cy = oy + (Math.floor(i / cols) + 0.5) * d, a = s.alive[i];
+      if (a < 0) { ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(cx, cy, d * 0.36, 0, 7); ctx.fill(); }
+      else if (s.t - a < 0.35) { ctx.fillStyle = C.c3; ctx.beginPath(); ctx.arc(cx, cy, d * 0.48, 0, 7); ctx.fill(); }
+      else { ctx.fillStyle = C.line; ctx.beginPath(); ctx.arc(cx, cy, d * 0.26, 0, 7); ctx.fill(); }
+    }
+    const gx = narrow ? 56 : ox + side + 64, gy = narrow ? oy + side + 34 : 34, gw = W - gx - 20, gh = narrow ? H - gy - 30 : H - 72;
+    const theo = []; for (let i = 0; i <= 100; i++) { const t = 5 * p.T * i / 100; theo.push([t, p.N0 * Math.pow(2, -t / p.T)]); }
+    graph(ctx, gx, gy, gw, gh, { x0: 0, x1: 5 * p.T, y0: 0, y1: p.N0, xl: "t (s)", yl: "N", series: [{ pts: theo, color: C.muted, dash: [5, 5], lw: 1.5 }, { pts: s.hist, color: C.accent, lw: 2.4 }] });
+    ctx.strokeStyle = C.c3; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+    for (let k = 1; k <= 4; k++) { const px = gx + k / 5 * gw; line(ctx, px, gy, px, gy + gh); }
+    ctx.setLineDash([]);
+    legend(ctx, gx + 6, gy + 14, [["N đo", C.accent], ["N₀·2^(−t/T)", C.muted, [5, 5]]]);
+  },
+  readouts(s, p) {
+    const Nt = p.N0 * Math.pow(2, -s.t / p.T);
+    return [["Thời gian t", fmt(s.t, 1) + " s"], ["t / T", fmt(s.t / p.T)], ["N còn lại (đo)", String(s.N)], ["N lí thuyết", fmt(Nt, 0)], ["N / N₀", fmt(100 * s.N / p.N0, 1) + " %"], ["Đã phân rã", String(p.N0 - s.N)]];
+  },
+  cols: ["N₀", "T (s)", "t (s)", "t/T", "N đo", "N lí thuyết", "N/N₀ (%)"],
+  record(s, p) { const Nt = p.N0 * Math.pow(2, -s.t / p.T); return [String(p.N0), fmt(p.T, 1), fmt(s.t, 1), fmt(s.t / p.T), String(s.N), fmt(Nt, 0), fmt(100 * s.N / p.N0, 1)]; },
+  qs: ["Dừng mô phỏng tại t = T, 2T, 3T (dùng các vạch vàng trên đồ thị) và ghi số liệu. Mỗi lần còn lại bao nhiêu phần N₀?",
+       "Có thể đoán trước hạt nhân nào sẽ phân rã tiếp theo không? Điều đó nói lên tính chất gì của phóng xạ?",
+       "Chạy với N₀ = 100 và N₀ = 2500. Trường hợp nào số liệu đo gần lí thuyết hơn? Vì sao?",
+       "Một mẫu phóng xạ có T = 8 ngày (iốt-131). Sau 24 ngày còn lại bao nhiêu phần trăm?"],
+});
+
+/* ---------- mô phỏng bổ sung ---------- */
+function rgb(h) { h = h.replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+
+/* 10. Con lắc đơn – bảo toàn cơ năng */
+SIMS.push({
+  id: "con-lac-don", grade: 10, chap: "Năng lượng", title: "Bảo toàn cơ năng – con lắc đơn",
+  blurb: "Thả quả nặng từ góc lệch α₀. Chọn mốc thế năng tại vị trí cân bằng. Theo dõi động năng, thế năng và cơ năng trên biểu đồ cột.",
+  params: [
+    { id: "l", label: "Chiều dài dây l", min: 0.3, max: 2, step: 0.05, value: 1, unit: "m" },
+    { id: "m", label: "Khối lượng m", min: 0.05, max: 1, step: 0.05, value: 0.2, unit: "kg" },
+    { id: "a0", label: "Góc lệch ban đầu α₀", min: 5, max: 80, step: 1, value: 40, unit: "°" },
+    { id: "b", label: "Lực cản không khí", min: 0, max: 0.2, step: 0.01, value: 0, unit: "kg/s", live: true },
+  ],
+  setup(p) { const a = p.a0 * Math.PI / 180; return { th: a, w: 0, t: 0, vmax: 0, W0: p.m * G * p.l * (1 - Math.cos(a)) }; },
+  step(s, p, dt) {
+    const n = 20, h = dt / n;
+    for (let i = 0; i < n; i++) { s.w += (-(G / p.l) * Math.sin(s.th) - (p.b / p.m) * s.w) * h; s.th += s.w * h; }
+    s.t += dt; s.vmax = Math.max(s.vmax, Math.abs(s.w) * p.l);
+  },
+  en(s, p) { const v = Math.abs(s.w) * p.l, h = p.l * (1 - Math.cos(s.th)); return { v, h, Wd: 0.5 * p.m * v * v, Wt: p.m * G * h }; },
+  draw(ctx, W, H, s, p) {
+    const bw = W < 560 ? 130 : 190, aw = W - bw, px = aw / 2, py = 36, a0 = p.a0 * Math.PI / 180;
+    const L = Math.min(H - 90, (px - 24) / Math.max(Math.sin(a0), 0.35));
+    ctx.fillStyle = C.line; ctx.fillRect(px - 50, py - 12, 100, 8);
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.arc(px, py, L, Math.PI / 2 - a0, Math.PI / 2 + a0); ctx.stroke(); line(ctx, px, py, px, py + L);
+    ctx.strokeStyle = C.c3; ctx.setLineDash([6, 4]); line(ctx, px - L * Math.sin(a0) - 10, py + L, px + L * Math.sin(a0) + 10, py + L); ctx.setLineDash([]);
+    ctx.fillStyle = C.c3; ctx.font = FONT(11.5, 500); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("Mốc thế năng", px - L * Math.sin(a0) - 10, py + L + 6);
+    const bx = px + L * Math.sin(s.th), by = py + L * Math.cos(s.th), r = 8 + 10 * Math.sqrt(p.m);
+    if (py + L - by > 6) { const hx = bx + (s.th >= 0 ? r + 10 : -r - 10); ctx.strokeStyle = C.c3; ctx.lineWidth = 1.2; line(ctx, hx, by, hx, py + L); ctx.fillStyle = C.c3; ctx.font = FONT(12, 600); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("h", hx + (s.th >= 0 ? 10 : -10), (by + py + L) / 2); }
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; line(ctx, px, py, bx, by);
+    ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.fill();
+    const e = this.en(s, p), W0 = Math.max(s.W0, 1e-9), bx0 = aw + 14, bh = H - 120, base = H - 50, bwid = (bw - 48) / 3;
+    [["Wđ", e.Wd, C.c2], ["Wt", e.Wt, C.c3], ["W", e.Wd + e.Wt, C.accent]].forEach(([n, v, col], i) => {
+      const x = bx0 + i * (bwid + 10), h = Math.min(v / W0, 1.2) * bh;
+      ctx.fillStyle = col; ctx.fillRect(x, base - h, bwid, h);
+      ctx.fillStyle = C.ink; ctx.font = FONT(12.5, 600); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(n, x + bwid / 2, base + 6);
+    });
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1; line(ctx, bx0 - 4, base, bx0 + 3 * (bwid + 10) - 6, base);
+    ctx.strokeStyle = C.muted; ctx.setLineDash([4, 4]); line(ctx, bx0 - 4, base - bh, bx0 + 3 * (bwid + 10) - 6, base - bh); ctx.setLineDash([]);
+    ctx.fillStyle = C.muted; ctx.font = FONT(11, 500); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("Cơ năng ban đầu", bx0 - 4, base - bh - 3);
+  },
+  readouts(s, p) {
+    const e = this.en(s, p);
+    return [["Góc lệch α", fmt(s.th * 180 / Math.PI, 1) + "°"], ["Tốc độ v", fmt(e.v) + " m/s"], ["Độ cao h", fmt(e.h * 100, 1) + " cm"], ["Động năng Wđ", fmt(e.Wd, 3) + " J"], ["Thế năng Wt", fmt(e.Wt, 3) + " J"], ["Cơ năng W", fmt(e.Wd + e.Wt, 3) + " J"], ["T (góc nhỏ)", fmt(2 * Math.PI * Math.sqrt(p.l / G), 2) + " s"]];
+  },
+  cols: ["l (m)", "m (kg)", "α₀ (°)", "v max đo (m/s)", "√(2gl(1 − cos α₀)) (m/s)", "Cơ năng (J)"],
+  record(s, p) {
+    if (s.t < 0.6 * Math.PI * Math.sqrt(p.l / G)) return "Chạy cho quả nặng đi qua vị trí cân bằng rồi mới ghi.";
+    const a = p.a0 * Math.PI / 180;
+    return [fmt(p.l), fmt(p.m), fmt(p.a0, 0), fmt(s.vmax, 3), fmt(Math.sqrt(2 * G * p.l * (1 - Math.cos(a))), 3), fmt(s.W0, 3)];
+  },
+  qs: ["Khi quả nặng đi từ vị trí biên về vị trí cân bằng, động năng và thế năng thay đổi thế nào? Cơ năng có đổi không?",
+       "So sánh tốc độ lớn nhất đo được với công thức v = √(2gl(1 − cos α₀)) rút ra từ định luật bảo toàn cơ năng.",
+       "Thay đổi khối lượng m: tốc độ lớn nhất có thay đổi không? Vì sao?",
+       "Bật lực cản không khí: cơ năng thay đổi thế nào? Phần năng lượng mất đi chuyển thành dạng nào?"],
+});
+
+/* 11. Định luật Hooke */
+SIMS.push({
+  id: "lo-xo-hooke", grade: 10, chap: "Biến dạng vật rắn", title: "Định luật Hooke",
+  blurb: "Treo các quả nặng 50 g vào lò xo có chiều dài tự nhiên 20 cm. Đọc chiều dài trên thước, ghi số liệu và quan sát đồ thị F theo Δl.",
+  static: true,
+  params: [
+    { id: "k", label: "Độ cứng lò xo k", min: 10, max: 100, step: 5, value: 40, unit: "N/m", live: true },
+    { id: "m", label: "Khối lượng các quả nặng", min: 0, max: 500, step: 50, value: 100, unit: "g", live: true },
+  ],
+  setup() { return { d: 0, pts: [] }; },
+  step() {},
+  draw(ctx, W, H, s, p) {
+    const target = p.m / 1000 * G / p.k; s.d += (target - s.d) * 0.12;
+    const narrow = W < 560, top = 26, kp = (H - 60) / 80, rx = narrow ? 40 : W * 0.06 + 30, sx = rx + 56;
+    ctx.fillStyle = C.soft; ctx.fillRect(rx - 26, top, 26, 80 * kp); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.strokeRect(rx - 26, top, 26, 80 * kp);
+    ctx.font = MONO(9.5); ctx.fillStyle = C.muted; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let c = 0; c <= 80; c++) { const y = top + c * kp, w = c % 10 === 0 ? 12 : c % 5 === 0 ? 8 : 4; if (kp < 3 && c % 5) continue; ctx.strokeStyle = C.ink; line(ctx, rx - w, y, rx, y); if (c % 10 === 0) ctx.fillText(String(c), rx - 14, y); }
+    ctx.fillStyle = C.muted; ctx.font = FONT(10.5, 500); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText("cm", rx - 13, top + 80 * kp + 4);
+    ctx.fillStyle = C.line; ctx.fillRect(sx - 30, top - 10, 60, 10);
+    const len = (20 + s.d * 100) * kp, ye = top + len, coils = 16;
+    ctx.strokeStyle = C.c3; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx, top); ctx.lineTo(sx, top + 6);
+    for (let i = 0; i < coils; i++) ctx.lineTo(sx + (i % 2 ? -10 : 10), top + 6 + (len - 12) * (i + 0.5) / coils);
+    ctx.lineTo(sx, ye - 6); ctx.lineTo(sx, ye); ctx.stroke();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; line(ctx, sx, ye, sx, ye + 8);
+    const n = Math.round(p.m / 50);
+    for (let i = 0; i < n; i++) { const y = ye + 8 + i * 10; ctx.fillStyle = C.c3; ctx.globalAlpha = 0.35; ctx.fillRect(sx - 18, y, 36, 9); ctx.globalAlpha = 1; ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(sx - 18, y, 36, 9); }
+    ctx.strokeStyle = C.c1; ctx.lineWidth = 1.5; line(ctx, rx, ye, sx - 12, ye);
+    ctx.fillStyle = C.c1; ctx.font = MONO(11.5); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(fmt(20 + s.d * 100, 1) + " cm", sx + 24, ye);
+    const gx = narrow ? sx + 92 : W * 0.42, gy = 34, gw = W - gx - 20, gh = H - 80;
+    const cur = [s.d * 100, p.m / 1000 * G], pts = s.pts;
+    const xm = Math.max(10, cur[0], ...pts.map((q) => q[0])) * 1.2, ym = Math.max(1, cur[1], ...pts.map((q) => q[1])) * 1.2;
+    let slope = 0, sxx = 0, sxy = 0; for (const [x, y] of pts) { sxx += x * x; sxy += x * y; } if (pts.length >= 2 && sxx > 0) slope = sxy / sxx;
+    graph(ctx, gx, gy, gw, gh, { x0: 0, x1: xm, y0: 0, y1: ym, xl: "Δl (cm)", yl: "F (N)", series: slope ? [{ pts: [[0, 0], [xm, slope * xm]], color: C.muted, dash: [5, 5], lw: 1.5 }] : [] });
+    const X = (x) => gx + x / xm * gw, Y = (y) => gy + gh - y / ym * gh;
+    ctx.fillStyle = C.accent; for (const [x, y] of pts) { ctx.beginPath(); ctx.arc(X(x), Y(y), 4.5, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = C.c1; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(cur[0]), Y(cur[1]), 5.5, 0, 7); ctx.stroke();
+    if (slope) { ctx.fillStyle = C.ink; ctx.font = FONT(12, 600); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("Độ dốc đường thẳng → k ≈ " + fmt(slope * 100, 1) + " N/m", gx + 8, gy + 8); }
+  },
+  readouts(s, p) {
+    const F = p.m / 1000 * G;
+    return [["Lực đàn hồi F = P", fmt(F) + " N"], ["Độ dãn Δl", fmt(s.d * 100, 1) + " cm"], ["Chiều dài l", fmt(20 + s.d * 100, 1) + " cm"], ["Độ cứng k", fmt(p.k, 0) + " N/m"]];
+  },
+  cols: ["m (g)", "F = P (N)", "l (cm)", "Δl (cm)", "F/Δl (N/m)"],
+  record(s, p) {
+    const target = p.m / 1000 * G / p.k;
+    if (Math.abs(s.d - target) > 0.0005) return "Chờ lò xo đứng yên rồi mới ghi.";
+    const F = p.m / 1000 * G, dl = target * 100; s.pts.push([dl, F]);
+    return [fmt(p.m, 0), fmt(F), fmt(20 + dl, 1), fmt(dl, 1), dl > 0 ? fmt(F / dl * 100, 1) : "—"];
+  },
+  qs: ["Treo lần lượt 1, 2, 3, 4, 5 quả nặng và ghi số liệu. Nhận xét đồ thị F theo Δl.",
+       "Từ độ dốc của đồ thị, xác định độ cứng k. So sánh với cột F/Δl.",
+       "Với cùng lực kéo, lò xo có k lớn dãn nhiều hay ít hơn? Kiểm tra bằng mô phỏng.",
+       "Phát biểu định luật Hooke. Lò xo thật còn tuân theo định luật này khi treo vật quá nặng không? (giới hạn đàn hồi)"],
+});
+
+/* 12. Giao thoa sóng */
+SIMS.push({
+  id: "giao-thoa", grade: 11, chap: "Sóng", title: "Giao thoa sóng mặt nước",
+  blurb: "Hai nguồn S₁, S₂ dao động cùng tần số. Chọn hiển thị “Biên độ” để thấy rõ vân cực đại, cực tiểu. Bấm lên mặt nước để đặt điểm M và kiểm tra.",
+  params: [
+    { id: "d", label: "Khoảng cách hai nguồn S₁S₂", min: 2, max: 12, step: 0.5, value: 8, unit: "cm", live: true },
+    { id: "lam", label: "Bước sóng λ", min: 0.6, max: 4, step: 0.1, value: 1.6, unit: "cm", live: true },
+    { id: "ph", label: "Hai nguồn dao động", type: "select", value: "0", options: [["0", "Cùng pha"], ["1", "Ngược pha"]], live: true },
+    { id: "view", label: "Hiển thị", type: "select", value: "wave", options: [["wave", "Mặt nước đang dao động"], ["amp", "Biên độ dao động (vân giao thoa)"]], live: true },
+  ],
+  span: 30,
+  setup() { return { t: 0, M: null }; },
+  step(s, p, dt) { s.t += dt; },
+  counts(p) { const q = p.d / p.lam, a = Math.ceil(q - 1e-9) - 1, b = Math.ceil(q - 0.5 - 1e-9); return p.ph === "0" ? { max: 2 * a + 1, min: 2 * b } : { max: 2 * b, min: 2 * a + 1 }; },
+  draw(ctx, W, H, s, p) {
+    const gw = Math.min(220, Math.round(W / 3)), gh = Math.max(40, Math.round(gw * H / W));
+    if (!this.oc || this.oc.width !== gw || this.oc.height !== gh) { this.oc = document.createElement("canvas"); this.oc.width = gw; this.oc.height = gh; this.img = this.oc.getContext("2d").createImageData(gw, gh); }
+    const cm = this.span / gw, sx1 = gw / 2 - p.d / 2 / cm, sx2 = gw / 2 + p.d / 2 / cm, sy = gh / 2;
+    const k = 2 * Math.PI / p.lam, phi = p.ph === "1" ? Math.PI : 0, wt = 2 * Math.PI * 0.8 * s.t, amp = p.view === "amp";
+    const bg = rgb(C.surface), cp = rgb(C.accent), cn = rgb(C.c2), d = this.img.data;
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const r1 = Math.hypot(i + 0.5 - sx1, j + 0.5 - sy) * cm, r2 = Math.hypot(i + 0.5 - sx2, j + 0.5 - sy) * cm;
+      const v = amp ? Math.abs(Math.cos((k * (r2 - r1) - phi) / 2)) : (Math.cos(wt - k * r1) / Math.sqrt(1 + r1 / 4) + Math.cos(wt - k * r2 + phi) / Math.sqrt(1 + r2 / 4)) / 2;
+      const c = v >= 0 ? cp : cn, a = Math.min(1, Math.abs(v) * (amp ? 1 : 1.4)), o = (j * gw + i) * 4;
+      d[o] = bg[0] + (c[0] - bg[0]) * a; d[o + 1] = bg[1] + (c[1] - bg[1]) * a; d[o + 2] = bg[2] + (c[2] - bg[2]) * a; d[o + 3] = 255;
+    }
+    this.oc.getContext("2d").putImageData(this.img, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(this.oc, 0, 0, W, H);
+    const kp = W / this.span, X = (x) => W / 2 + x * kp, Y = (y) => H / 2 + y * kp;
+    for (const [x, name] of [[-p.d / 2, "S₁"], [p.d / 2, "S₂"]]) {
+      ctx.fillStyle = C.c1; ctx.beginPath(); ctx.arc(X(x), Y(0), 6, 0, 7); ctx.fill();
+      ctx.fillStyle = C.ink; ctx.font = FONT(13, 700); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(name, X(x), Y(0) + 9);
+    }
+    if (s.M) {
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
+      line(ctx, X(-p.d / 2), Y(0), X(s.M.x), Y(s.M.y)); line(ctx, X(p.d / 2), Y(0), X(s.M.x), Y(s.M.y)); ctx.setLineDash([]);
+      ctx.fillStyle = C.c3; ctx.strokeStyle = C.ink; ctx.beginPath(); ctx.arc(X(s.M.x), Y(s.M.y), 6, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C.ink; ctx.font = FONT(13, 700); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("M", X(s.M.x) + 8, Y(s.M.y) - 4);
+    }
+    const sb = 5 * kp; ctx.fillStyle = C.surface; ctx.globalAlpha = 0.85; ctx.fillRect(10, H - 34, sb + 20, 26); ctx.globalAlpha = 1;
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; line(ctx, 20, H - 16, 20 + sb, H - 16); line(ctx, 20, H - 21, 20, H - 11); line(ctx, 20 + sb, H - 21, 20 + sb, H - 11);
+    ctx.fillStyle = C.ink; ctx.font = MONO(11); ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText("5 cm", 20 + sb / 2, H - 19);
+  },
+  pointer(type, x, y, s, p, W, H) { if (type === "down") { const kp = W / this.span; s.M = { x: (x - W / 2) / kp, y: (y - H / 2) / kp }; } },
+  mInfo(s, p) {
+    if (!s.M) return null;
+    const d1 = Math.hypot(s.M.x + p.d / 2, s.M.y), d2 = Math.hypot(s.M.x - p.d / 2, s.M.y), q = (d2 - d1) / p.lam, fr = Math.abs(q - Math.round(q)), fh = Math.abs(q - Math.round(q - 0.5) - 0.5);
+    const inPhase = p.ph === "0", isMax = inPhase ? fr < 0.1 : fh < 0.1, isMin = inPhase ? fh < 0.1 : fr < 0.1;
+    return { d1, d2, q, kind: isMax ? "cực đại" : isMin ? "cực tiểu" : "biên độ trung gian" };
+  },
+  readouts(s, p) {
+    const c = this.counts(p), m = this.mInfo(s, p);
+    const out = [["Bước sóng λ", fmt(p.lam, 1) + " cm"], ["Số cực đại trên S₁S₂", String(c.max)], ["Số cực tiểu trên S₁S₂", String(c.min)], ["Hai cực đại liền kề cách", fmt(p.lam / 2, 2) + " cm"]];
+    if (m) out.push(["d₂ − d₁ tại M", fmt(m.d2 - m.d1, 2) + " cm = " + fmt(m.q, 2) + "λ"], ["M thuộc vân", m.kind]);
+    else out.push(["Điểm M", "bấm lên mặt nước"]);
+    return out;
+  },
+  cols: ["d (cm)", "λ (cm)", "Hai nguồn", "Số cực đại", "Số cực tiểu", "(d₂ − d₁)/λ tại M", "M thuộc vân"],
+  record(s, p) { const c = this.counts(p), m = this.mInfo(s, p); return [fmt(p.d, 1), fmt(p.lam, 1), p.ph === "0" ? "cùng pha" : "ngược pha", String(c.max), String(c.min), m ? fmt(m.q, 2) : "—", m ? m.kind : "—"]; },
+  qs: ["Hai nguồn cùng pha: điểm nằm trên đường trung trực của S₁S₂ là cực đại hay cực tiểu? Đặt M để kiểm tra.",
+       "Đặt M trên một vân cực đại bất kì: tính (d₂ − d₁)/λ. Rút ra điều kiện để có cực đại, cực tiểu.",
+       "Với d = 8 cm, λ = 1,6 cm, tính số cực đại trên đoạn S₁S₂ bằng công thức rồi so sánh với mô phỏng.",
+       "Chuyển hai nguồn sang ngược pha: vân ở đường trung trực thay đổi thế nào?"],
+});
+
+/* 13. Định luật Ôm cho toàn mạch */
+SIMS.push({
+  id: "mach-dien", grade: 11, chap: "Dòng điện, mạch điện", title: "Định luật Ôm cho toàn mạch",
+  blurb: "Nguồn điện (E, r) mắc với biến trở R. Ampe kế đo cường độ dòng điện, vôn kế đo hiệu điện thế mạch ngoài. Chấm vàng chạy theo chiều dòng điện quy ước.",
+  static: true,
+  params: [
+    { id: "E", label: "Suất điện động E", min: 1.5, max: 12, step: 0.5, value: 6, unit: "V", live: true },
+    { id: "r", label: "Điện trở trong r", min: 0.1, max: 5, step: 0.1, value: 1, unit: "Ω", live: true },
+    { id: "R", label: "Biến trở R", min: 0, max: 30, step: 0.5, value: 5, unit: "Ω", live: true },
+  ],
+  setup() { return {}; },
+  step() {},
+  calc(p) { const I = p.E / (p.R + p.r), U = I * p.R; return { I, U, P: U * I, Pn: p.E * I, H: p.R / (p.R + p.r) }; },
+  draw(ctx, W, H, s, p) {
+    const narrow = W < 620, c = this.calc(p);
+    const x0 = 46, y0 = 46, x1 = narrow ? W - 70 : W * 0.5, y1 = narrow ? H * 0.48 : H - 46, mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    // dòng điện
+    const w = x1 - x0, h = y1 - y0, per = 2 * (w + h), sp = clamp(c.I * 30, 0, 420), off = (performance.now() / 1000 * sp) % 26;
+    const pos = (v) => v < w ? [x0 + v, y0] : v < w + h ? [x1, y0 + v - w] : v < 2 * w + h ? [x1 - (v - w - h), y1] : [x0, y1 - (v - 2 * w - h)];
+    ctx.fillStyle = C.c3; for (let v = off; v < per; v += 26) { const [x, y] = pos(v); ctx.beginPath(); ctx.arc(x, y, 3, 0, 7); ctx.fill(); }
+    // nguồn
+    ctx.fillStyle = C.surface; ctx.fillRect(x0 - 16, my - 14, 32, 28);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2; line(ctx, x0, my - 14, x0, my - 5); line(ctx, x0, my + 5, x0, my + 14);
+    ctx.lineWidth = 2; line(ctx, x0 - 15, my - 5, x0 + 15, my - 5); ctx.lineWidth = 5; line(ctx, x0 - 8, my + 5, x0 + 8, my + 5);
+    ctx.fillStyle = C.ink; ctx.font = FONT(13, 700); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText("+", x0 - 18, my - 9); ctx.fillText("−", x0 - 18, my + 9);
+    ctx.font = MONO(11.5); ctx.textAlign = "left"; ctx.fillText("E = " + fmt(p.E, 1) + " V", x0 + 20, my - 9); ctx.fillText("r = " + fmt(p.r, 1) + " Ω", x0 + 20, my + 9);
+    // biến trở
+    ctx.fillStyle = C.surface; ctx.fillRect(x1 - 12, my - 30, 24, 60); ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.strokeRect(x1 - 10, my - 28, 20, 56);
+    arrow(ctx, x1 - 22, my + 30, x1 + 22, my - 30, C.ink, 1.5);
+    ctx.fillStyle = C.ink; ctx.font = FONT(13, 700); ctx.textAlign = "right"; ctx.fillText("R", x1 - 24, my);
+    // vôn kế song song với R
+    const vx = x1 + 40; ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; line(ctx, x1, my - 46, vx, my - 46); line(ctx, vx, my - 46, vx, my + 46); line(ctx, vx, my + 46, x1, my + 46);
+    for (const [cx, cy, t] of [[mx, y0, "A"], [vx, my, "V"]]) { ctx.fillStyle = C.surface; ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 15, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = C.ink; ctx.font = FONT(13, 700); ctx.textAlign = "center"; ctx.fillText(t, cx, cy + 1); }
+    ctx.font = MONO(13); ctx.fillStyle = C.accent; ctx.textAlign = "center";
+    ctx.fillText("I = " + fmt(c.I) + " A", mx, my - 12); ctx.fillText("U = " + fmt(c.U) + " V", mx, my + 12);
+    if (p.R === 0) { ctx.fillStyle = C.c1; ctx.font = FONT(12.5, 600); ctx.fillText("R = 0: đoản mạch, dòng điện rất lớn!", mx, y1 + 24); }
+    const gx = narrow ? 56 : W * 0.5 + 100, gy = narrow ? H * 0.48 + 56 : 46, gw = narrow ? W - 76 : W * 0.5 - 120, gh = narrow ? H - gy - 30 : H - 92;
+    const Isc = p.E / p.r, xm = Math.min(Isc, Math.max(c.I * 1.8, 0.5)) * 1.05, ym = p.E * 1.1;
+    graph(ctx, gx, gy, gw, gh, { x0: 0, x1: xm, y0: 0, y1: ym, xl: "I (A)", yl: "U (V)", series: [{ pts: [[0, p.E], [Isc, 0]], color: C.accent, lw: 2 }] });
+    const X = gx + c.I / xm * gw, Y = gy + gh - c.U / ym * gh;
+    ctx.fillStyle = C.c1; ctx.beginPath(); ctx.arc(X, Y, 5.5, 0, 7); ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = FONT(12, 600); ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("U = E − I·r", gx + gw - 8, gy + 8);
+  },
+  readouts(s, p) {
+    const c = this.calc(p);
+    return [["Cường độ I", fmt(c.I) + " A"], ["Hiệu điện thế U", fmt(c.U) + " V"], ["Độ giảm thế I·r", fmt(c.I * p.r) + " V"], ["Công suất mạch ngoài", fmt(c.P) + " W"], ["Công suất nguồn E·I", fmt(c.Pn) + " W"], ["Hiệu suất H", fmt(100 * c.H, 1) + " %"]];
+  },
+  cols: ["E (V)", "r (Ω)", "R (Ω)", "I (A)", "U (V)", "P mạch ngoài (W)", "H (%)"],
+  record(s, p) { const c = this.calc(p); return [fmt(p.E, 1), fmt(p.r, 1), fmt(p.R, 1), fmt(c.I, 3), fmt(c.U, 3), fmt(c.P, 3), fmt(100 * c.H, 1)]; },
+  qs: ["Giữ E, r; ghi I và U với 5 giá trị R khác nhau. Vẽ đồ thị U(I) và xác định E, r từ đồ thị.",
+       "Khi R tăng, I và U thay đổi thế nào? Giải thích bằng công thức I = E/(R + r).",
+       "Tìm giá trị R để công suất mạch ngoài lớn nhất. So sánh R đó với r.",
+       "Vì sao đoản mạch (R ≈ 0) lại nguy hiểm? Cầu chì và aptomat bảo vệ mạch như thế nào?"],
+});
+
+/* 14. Nhiệt dung riêng */
+SIMS.push({
+  id: "nhiet-dung-rieng", grade: 12, chap: "Vật lí nhiệt", title: "Đo nhiệt dung riêng",
+  blurb: "Dây điện trở công suất P đun nóng chất trong bình cách nhiệt. Thời gian được tua nhanh 30 lần. Tính nhiệt dung riêng theo c = P·t/(m·Δt).",
+  params: [
+    { id: "c", label: "Chất được đun", type: "select", value: "4200", options: [["4200", "Nước"], ["2500", "Rượu etylic"], ["880", "Khối nhôm"], ["380", "Khối đồng"]] },
+    { id: "m", label: "Khối lượng m", min: 0.1, max: 1, step: 0.05, value: 0.2, unit: "kg" },
+    { id: "P", label: "Công suất dây đun P", min: 10, max: 200, step: 5, value: 60, unit: "W" },
+    { id: "loss", label: "Nhiệt hao phí ra môi trường", min: 0, max: 40, step: 5, value: 0, unit: "%", live: true },
+  ],
+  T0: 25, FF: 30,
+  info(p) { const c = +p.c; return { c, liquid: c >= 2500, Tb: c === 4200 ? 100 : c === 2500 ? 78 : 300, name: { 4200: "Nước", 2500: "Rượu etylic", 880: "Nhôm", 380: "Đồng" }[c] }; },
+  setup() { return { t: 0, T: this.T0, Q: 0, hist: [[0, this.T0]], done: false }; },
+  step(s, p, dt) {
+    const I = this.info(p), d = dt * this.FF;
+    s.t += d; s.Q += p.P * d; s.T += p.P * d * (1 - p.loss / 100) / (p.m * I.c);
+    if (s.T >= I.Tb) { s.T = I.Tb; s.done = true; }
+    s.hist.push([s.t, s.T]);
+    if (s.done) return "stop";
+  },
+  draw(ctx, W, H, s, p) {
+    const I = this.info(p), narrow = W < 620, aw = narrow ? W : W * 0.42, ah = narrow ? H * 0.5 : H;
+    const cx = aw * 0.4, yb = ah - 34, cw = Math.min(130, aw * 0.4), ch = Math.min(150, ah * 0.55), yt = yb - ch;
+    if (I.liquid) {
+      ctx.fillStyle = C.c2; ctx.globalAlpha = 0.22; ctx.fillRect(cx - cw / 2, yt + ch * 0.25, cw, ch * 0.75); ctx.globalAlpha = 1;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - cw / 2, yt); ctx.lineTo(cx - cw / 2, yb); ctx.lineTo(cx + cw / 2, yb); ctx.lineTo(cx + cw / 2, yt); ctx.stroke();
+    } else {
+      ctx.fillStyle = C.c3; ctx.globalAlpha = 0.3; ctx.fillRect(cx - cw / 2, yt + ch * 0.2, cw, ch * 0.8); ctx.globalAlpha = 1;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.strokeRect(cx - cw / 2, yt + ch * 0.2, cw, ch * 0.8);
+    }
+    ctx.fillStyle = C.ink; ctx.font = FONT(12, 600); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(I.name + " · " + fmt(p.m) + " kg", cx, yb + 6);
+    const hot = running && !s.done; ctx.strokeStyle = hot ? C.c1 : C.muted; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - 14, yt - 26); ctx.lineTo(cx - 14, yb - 34);
+    for (let i = 0; i < 7; i++) ctx.lineTo(cx - 14 + 28 * (i + 0.5) / 7, yb - 34 + (i % 2 ? -10 : 10));
+    ctx.lineTo(cx + 14, yb - 34); ctx.lineTo(cx + 14, yt - 26); ctx.stroke();
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.fillRect(cx - 44, yt - 54, 88, 28); ctx.strokeRect(cx - 44, yt - 54, 88, 28);
+    ctx.fillStyle = C.ink; ctx.font = MONO(11.5); ctx.textBaseline = "middle"; ctx.fillText("P = " + fmt(p.P, 0) + " W", cx, yt - 40);
+    const tx = cx + cw / 2 + 30, tTop = yt - 40, tBot = yb - 8, Tmax = I.liquid ? 110 : 320;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.fillRect(tx - 5, tTop, 10, tBot - tTop); ctx.strokeRect(tx - 5, tTop, 10, tBot - tTop);
+    const lv = tBot - clamp(s.T / Tmax, 0, 1) * (tBot - tTop);
+    ctx.fillStyle = C.c1; ctx.fillRect(tx - 3, lv, 6, tBot - lv); ctx.beginPath(); ctx.arc(tx, tBot + 6, 9, 0, 7); ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = MONO(13); ctx.textAlign = "left"; ctx.fillText(fmt(s.T, 1) + " °C", tx + 14, lv);
+    const gx = narrow ? 56 : aw + 50, gy = narrow ? ah + 24 : 40, gw = narrow ? W - 76 : W - aw - 70, gh = narrow ? H - ah - 52 : H - 86;
+    const y1 = I.liquid ? I.Tb + 6 : Math.max(60, s.T * 1.2);
+    graph(ctx, gx, gy, gw, gh, { x0: 0, x1: Math.max(120, s.t * 1.15), y0: 20, y1, xl: "t (s)", yl: "nhiệt độ (°C)", series: [{ pts: s.hist, color: C.c1, lw: 2.2 }] });
+    if (s.done && I.liquid) { ctx.fillStyle = C.c1; ctx.font = FONT(12.5, 600); ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText(I.name + " bắt đầu sôi ở " + I.Tb + " °C", gx + 8, gy + 8); }
+  },
+  readouts(s, p) {
+    const I = this.info(p), dT = s.T - this.T0;
+    return [["Thời gian t", fmt(s.t, 0) + " s"], ["Nhiệt lượng cung cấp P·t", fmt(s.Q, 0) + " J"], ["Nhiệt độ", fmt(s.T, 1) + " °C"], ["Độ tăng nhiệt Δt", fmt(dT, 1) + " °C"], ["c tính được", dT >= 0.5 ? fmt(s.Q / (p.m * dT), 0) + " J/kg·K" : "—"], ["c trong bảng", fmt(I.c, 0) + " J/kg·K"]];
+  },
+  cols: ["Chất", "m (kg)", "P (W)", "Hao phí (%)", "t (s)", "Δt (°C)", "Q = P·t (J)", "c tính được (J/kg·K)"],
+  record(s, p) {
+    const dT = s.T - this.T0; if (dT < 1) return "Đun cho nhiệt độ tăng ít nhất 1 °C rồi ghi.";
+    return [this.info(p).name, fmt(p.m), fmt(p.P, 0), fmt(p.loss, 0), fmt(s.t, 0), fmt(dT, 1), fmt(s.Q, 0), fmt(s.Q / (p.m * dT), 0)];
+  },
+  qs: ["Đun 0,2 kg nước bằng dây 60 W. Ghi số liệu khi nhiệt độ tăng 10 °C, 20 °C, 30 °C. Tính c và so sánh với bảng.",
+       "Đặt hao phí 20%: giá trị c tính được lớn hơn hay nhỏ hơn giá trị thật? Giải thích.",
+       "Cùng m và P, đun nước và đun khối đồng: chất nào nóng nhanh hơn? Liên hệ với nhiệt dung riêng.",
+       "Vì sao trong thí nghiệm thật cần khuấy đều và dùng bình nhiệt lượng kế có vỏ cách nhiệt?"],
+});
+
+/* 15. Lực từ */
+SIMS.push({
+  id: "luc-tu", grade: 12, chap: "Từ trường", title: "Lực từ tác dụng lên đoạn dây dẫn",
+  blurb: "Đoạn dây dẫn mang dòng điện I đặt trong từ trường đều giữa hai cực nam châm (nhìn từ trên xuống). α là góc giữa dây dẫn và đường sức từ.",
+  static: true,
+  params: [
+    { id: "B", label: "Cảm ứng từ B", min: 0.02, max: 0.5, step: 0.01, value: 0.1, unit: "T", live: true },
+    { id: "I", label: "Cường độ dòng điện I", min: -10, max: 10, step: 0.5, value: 5, unit: "A", live: true },
+    { id: "L", label: "Chiều dài đoạn dây L", min: 0.05, max: 0.3, step: 0.01, value: 0.2, unit: "m", live: true },
+    { id: "a", label: "Góc α giữa dây và B⃗", min: 0, max: 90, step: 5, value: 90, unit: "°", live: true },
+  ],
+  setup() { return {}; },
+  step() {},
+  F(p) { return Math.abs(p.B * p.I * p.L * Math.sin(p.a * Math.PI / 180)); },
+  dir(p) { const fz = -p.I * Math.sin(p.a * Math.PI / 180); return Math.abs(fz) < 1e-9 ? 0 : fz < 0 ? -1 : 1; },
+  draw(ctx, W, H, s, p) {
+    const pw = Math.min(70, W * 0.11), gx0 = 20 + pw, gx1 = W - 20 - pw, top = 30, bot = H - 56;
+    ctx.fillStyle = C.c1; ctx.fillRect(20, top, pw, bot - top); ctx.fillStyle = C.c2; ctx.fillRect(W - 20 - pw, top, pw, bot - top);
+    ctx.fillStyle = "#ffffff"; ctx.font = FONT(20, 700); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("N", 20 + pw / 2, (top + bot) / 2); ctx.fillText("S", W - 20 - pw / 2, (top + bot) / 2);
+    ctx.globalAlpha = 0.45; for (let y = top + 18; y < bot - 4; y += 34) arrow(ctx, gx0 + 6, y, gx1 - 6, y, C.muted, 1.2); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.muted; ctx.font = FONT(13, 700); ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText("B⃗", gx1 - 8, top + 24);
+    const cx = (gx0 + gx1) / 2, cy = (top + bot) / 2, a = p.a * Math.PI / 180, Lpx = p.L / 0.3 * Math.min(gx1 - gx0 - 40, bot - top - 30);
+    const ux = Math.cos(a), uy = -Math.sin(a);
+    ctx.strokeStyle = C.c3; ctx.lineWidth = 7; ctx.lineCap = "round"; line(ctx, cx - ux * Lpx / 2, cy - uy * Lpx / 2, cx + ux * Lpx / 2, cy + uy * Lpx / 2); ctx.lineCap = "butt";
+    if (p.I !== 0) { const sg = Math.sign(p.I), ox = -uy * 16, oy = ux * 16; arrow(ctx, cx + ox - sg * ux * Lpx * 0.3, cy + oy - sg * uy * Lpx * 0.3, cx + ox + sg * ux * Lpx * 0.3, cy + oy + sg * uy * Lpx * 0.3, C.ink, 2.2, "I"); }
+    const F = this.F(p), dr = this.dir(p);
+    if (dr) {
+      const R = clamp(12 + 34 * Math.sqrt(F / 1.5), 12, 46);
+      ctx.fillStyle = C.surface; ctx.strokeStyle = C.c1; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill(); ctx.stroke();
+      if (dr < 0) { const q = R * 0.55; line(ctx, cx - q, cy - q, cx + q, cy + q); line(ctx, cx - q, cy + q, cx + q, cy - q); }
+      else { ctx.fillStyle = C.c1; ctx.beginPath(); ctx.arc(cx, cy, R * 0.25, 0, 7); ctx.fill(); }
+      ctx.fillStyle = C.c1; ctx.font = FONT(14, 700); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText("F⃗", cx + R + 6, cy - R * 0.6);
+    }
+    ctx.fillStyle = C.ink; ctx.font = FONT(12.5, 500); ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillText(dr < 0 ? "⊗ F⃗ vuông góc với mặt phẳng hình vẽ, hướng vào trong" : dr > 0 ? "⊙ F⃗ vuông góc với mặt phẳng hình vẽ, hướng ra ngoài" : "F = 0 (dây song song với đường sức hoặc I = 0)", W / 2, bot + 14, W - 24);
+  },
+  readouts(s, p) {
+    const F = this.F(p), dr = this.dir(p);
+    return [["Lực từ F", fmt(F, 3) + " N"], ["Chiều của F⃗", dr < 0 ? "vào trong (⊗)" : dr > 0 ? "ra ngoài (⊙)" : "—"], ["sin α", fmt(Math.sin(p.a * Math.PI / 180), 3)], ["B·|I|·L", fmt(p.B * Math.abs(p.I) * p.L, 3) + " N"]];
+  },
+  cols: ["B (T)", "I (A)", "L (m)", "α (°)", "F (N)", "F/(|I|·L·sin α) (T)"],
+  record(s, p) { const F = this.F(p), den = Math.abs(p.I) * p.L * Math.sin(p.a * Math.PI / 180); return [fmt(p.B), fmt(p.I, 1), fmt(p.L), fmt(p.a, 0), fmt(F, 4), den > 1e-9 ? fmt(F / den, 3) : "—"]; },
+  qs: ["Giữ B, L, α = 90°; ghi F với I = 2, 4, 6, 8 A. F phụ thuộc I thế nào?",
+       "Giữ B, I, L; thay đổi α từ 0° đến 90°. Khi nào F lớn nhất, khi nào F = 0?",
+       "Đổi chiều dòng điện (I âm): chiều lực từ thay đổi thế nào? Kiểm tra bằng quy tắc bàn tay trái.",
+       "Từ bảng số liệu, nhận xét cột F/(|I|·L·sin α). Rút ra ý nghĩa của cảm ứng từ B."],
+});
+
+const ORDER = ["nem-xien", "mat-phang-nghieng", "con-lac-don", "va-cham", "lo-xo-hooke", "con-lac-lo-xo", "song-dung", "giao-thoa", "dien-truong", "mach-dien", "nhiet-dung-rieng", "khi-li-tuong", "luc-tu", "cam-ung-dien-tu", "phong-xa"];
+SIMS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
+
+/* ---------- bộ điều khiển chung ---------- */
+const cv = $("cv"), ctx = cv.getContext("2d");
+let cur = null, st = null, P = {}, running = false, speed = 1, W = 800, H = 480, lastT = 0, colorT = 0;
+const tables = {};
+
+function sizeCanvas() {
+  const w = cv.parentElement.clientWidth, full = document.fullscreenElement === $("stage");
+  const h = full ? Math.max(300, window.innerHeight - 220) : clamp(Math.round(w * 0.58), 300, 560);
+  const dpr = window.devicePixelRatio || 1;
+  W = w; H = h; cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function setStatus(t) { $("status").textContent = t || ""; }
+function setRunning(r) { running = r && !cur.static; $("play").textContent = running ? "⏸ Tạm dừng" : "▶ Chạy"; $("play").hidden = !!cur.static; $("spd").parentElement.hidden = !!cur.static; }
+function reset() { st = cur.setup(P, W, H); setRunning(false); setStatus(""); }
+
+function buildParams() {
+  const box = $("params"); box.innerHTML = "";
+  for (const q of cur.params) {
+    const wrap = document.createElement("div"); wrap.className = "param";
+    const id = "p-" + cur.id + "-" + q.id;
+    if (q.type === "select") {
+      wrap.innerHTML = `<label for="${id}">${q.label}</label><select id="${id}">${q.options.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>`;
+      const el = wrap.querySelector("select"); el.value = P[q.id];
+      el.addEventListener("change", () => { P[q.id] = el.value; if (!q.live) reset(); });
+    } else {
+      wrap.innerHTML = `<label for="${id}"><span>${q.label}</span><output></output></label><input type="range" id="${id}" min="${q.min}" max="${q.max}" step="${q.step}">`;
+      const el = wrap.querySelector("input"), out = wrap.querySelector("output");
+      const show = () => { const dec = (String(q.step).split(".")[1] || "").length; out.textContent = fmt(+el.value, dec) + (q.unit ? " " + q.unit : ""); };
+      el.value = P[q.id]; show();
+      el.addEventListener("input", () => { P[q.id] = +el.value; show(); if (!q.live && !cur.static) reset(); });
+    }
+    box.appendChild(wrap);
+  }
+}
+function renderTable() {
+  const rows = tables[cur.id] || [], box = $("tablebox");
+  if (!rows.length) { box.innerHTML = `<p class="empty">Chưa có số liệu. Chỉnh thông số, chạy thí nghiệm rồi bấm “＋ Ghi số liệu”.</p>`; return; }
+  box.innerHTML = `<table><thead><tr><th>Lần</th>${cur.cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td>${r.map((v) => `<td>${v}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function renderReadouts() {
+  $("readouts").innerHTML = cur.readouts(st, P).map(([k, v]) => `<div class="ro"><span>${k}</span><b>${v}</b></div>`).join("");
+}
+function selectSim(id) {
+  cur = SIMS.find((s) => s.id === id) || SIMS[0];
+  P = {}; for (const q of cur.params) P[q.id] = q.value;
+  $("chap").textContent = "Lớp " + cur.grade + " · " + cur.chap;
+  $("simtitle").textContent = cur.title; $("blurb").textContent = cur.blurb;
+  $("qs").innerHTML = cur.qs.map((q) => `<li>${q}</li>`).join("");
+  buildGrades(cur.grade); buildList(cur.grade);
+  buildParams(); sizeCanvas(); reset(); renderTable();
+  $("rec").hidden = false;
+}
+function buildGrades(g) {
+  $("grades").innerHTML = [10, 11, 12].map((n) => `<button type="button" data-g="${n}" aria-pressed="${n === g}">Lớp ${n}</button>`).join("");
+  $("grades").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { const first = SIMS.find((s) => s.grade === +b.dataset.g); location.hash = first.id; }));
+}
+function buildList(g) {
+  $("simlist").innerHTML = SIMS.filter((s) => s.grade === g).map((s) => `<a href="#${s.id}" aria-current="${s.id === cur.id}"><small>${s.chap}</small>${s.title}</a>`).join("");
+}
+
+$("play").addEventListener("click", () => {
+  if (!running && st.done) reset();
+  setRunning(!running);
+});
+$("reset").addEventListener("click", reset);
+$("rec").addEventListener("click", () => {
+  const r = cur.record(st, P);
+  if (typeof r === "string") { setStatus(r); return; }
+  (tables[cur.id] = tables[cur.id] || []).push(r); renderTable(); setStatus("Đã ghi lần " + tables[cur.id].length + ".");
+});
+$("clear").addEventListener("click", () => { tables[cur.id] = []; if (st && st.pts) st.pts.length = 0; renderTable(); setStatus("Đã xoá bảng số liệu."); });
+$("copy").addEventListener("click", () => {
+  const rows = tables[cur.id] || []; if (!rows.length) { setStatus("Bảng đang trống."); return; }
+  const text = [["Lần", ...cur.cols].join("\t"), ...rows.map((r, i) => [i + 1, ...r].join("\t"))].join("\n");
+  const done = () => setStatus("Đã sao chép. Mở Excel và dán (Ctrl+V).");
+  try { navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text)); } catch (e) { fallbackCopy(text); }
+});
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+  ta.remove(); setStatus(ok ? "Đã sao chép. Mở Excel và dán (Ctrl+V)." : "Trình duyệt chặn sao chép. Hãy bôi đen bảng và nhấn Ctrl+C.");
+}
+$("spd").addEventListener("change", (e) => { speed = +e.target.value; });
+$("fs").addEventListener("click", () => {
+  const el = $("stage");
+  if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+  if (el.requestFullscreen) el.requestFullscreen().catch(() => setStatus("Trình duyệt không cho phép toàn màn hình ở đây."));
+  else setStatus("Trình duyệt không hỗ trợ toàn màn hình.");
+});
+document.addEventListener("fullscreenchange", () => { sizeCanvas(); if (cur.id === "khi-li-tuong") reset(); });
+function ptr(type, e) {
+  if (!cur.pointer) return; const r = cv.getBoundingClientRect();
+  cur.pointer(type, e.clientX - r.left, e.clientY - r.top, st, P, W, H);
+  if (type === "down" && !running) setRunning(true);
+}
+cv.addEventListener("pointerdown", (e) => { cv.setPointerCapture(e.pointerId); ptr("down", e); });
+cv.addEventListener("pointermove", (e) => ptr("move", e));
+cv.addEventListener("pointerup", (e) => ptr("up", e));
+cv.addEventListener("pointercancel", (e) => ptr("up", e));
+
+let lastW = 0;
+new ResizeObserver(() => { const w = cv.parentElement.clientWidth; if (Math.abs(w - lastW) < 2) return; lastW = w; sizeCanvas(); if (cur && cur.id === "khi-li-tuong") reset(); }).observe(cv.parentElement);
+window.addEventListener("hashchange", () => selectSim(location.hash.slice(1)));
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000 || 0) * speed; lastT = now;
+  if (now - colorT > 500) { readColors(); colorT = now; }
+  if (running && dt > 0) { if (cur.step(st, P, dt) === "stop") setRunning(false); }
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = C.surface; ctx.fillRect(0, 0, W, H);
+  cur.draw(ctx, W, H, st, P);
+  renderReadouts();
+  requestAnimationFrame(frame);
+}
+readColors();
+selectSim(location.hash.slice(1));
+requestAnimationFrame(frame);
+</script>
